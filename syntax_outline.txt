@@ -1,0 +1,33 @@
+Syntax
+
+DEFINITION			DATA TYPE
+var x : <Statement>		value
+func f x,y : <Statement>	value
++	func f x,y = <Value>
+statement : <Statement>		statement
+predicate x,y : <Statement>	statement
+set x,y : <Statement>		set
+op A,B,C : <Statement>		operation (boolean, like and/or)
+true				statement
+false				statement
+
+
+CODE ACTIONS
+assume statement	= set statement.truth=true
+check statement		= print statement.truth
+
+
+INTERNAL CODE
+Statement enum 
+- custom(" ")
+- equality(value,value)
+- existence(set)
+- not(statement)
+- junc(statement..., bool)
+	junc(s...,true) = and(s...)
+		(Reason: You can remove a "True" from a conjunction)
+		junc([],true) = True
+	junc(s...,false) = or(s...)
+		junc([],false) = False
+
+
