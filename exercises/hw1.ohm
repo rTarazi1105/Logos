@@ -1,0 +1,75 @@
+EvalToFour {
+  Exp     = Term
+  Term    = Term "**" Factor  -- exponent
+          | Factor
+  Factor  = "-" Factor        -- negate
+          | Primary
+  Primary = number
+          | "(" Exp ")"
+}
+
+EvalToNegativeFour {
+  Exp     = "-" Exp          -- negate
+          | Term
+  Term    = Term "**" Factor  -- exponent
+          | Factor
+  Factor  = Primary
+  Primary = number
+          | "(" Exp ")"
+}
+
+NeedParenthesis {
+  Exp     = Term
+  Term    = Term "**" Factor  -- exponent
+          | Factor
+  Factor  = Primary
+  Primary = number
+          | "-" Primary       -- explicit negation only allowed on numbers
+          | "(" Exp ")"
+}
+
+Astro++ {
+  Program  = Statement*
+  
+  Statement = VarDecl ";"
+           | Assign ";"
+           | Expr ";"
+           | IfStmt
+           | WhileStmt
+           | BreakStmt
+
+  VarDecl  = "var" identifier "=" Expr   -- variable declaration
+  Assign   = identifier "=" Expr         -- assignment
+  BreakStmt = "break"                     -- break statement
+  
+  IfStmt   = "if" "(" Expr ")" Block ElsePart?
+  ElsePart = "else" (Block | IfStmt)       -- else block or else-if chain
+  
+  WhileStmt = "while" "(" Expr ")" Block  -- while loop
+
+  Block    = "{" Statement* "}"           -- curly-brace delimited sequence
+
+  Expr     = Expr AddOp Term   -- addition and subtraction
+           | Term
+
+  Term     = Term MulOp Factor  -- multiplication and division
+           | Factor
+
+  Factor   = "-" Factor         -- negation
+           | Primary
+
+  Primary  = number
+           | identifier
+           | "(" Expr ")"
+
+  AddOp    = "+" | "-"
+  MulOp    = "*" | "/"
+
+  RelExpr  = Expr RelOp Expr  -- relational operators (lowest precedence)
+  RelOp    = "==" | "!=" | "<" | "<=" | ">" | ">="  -- non-associative
+
+  identifier = letter (letter | digit)*  -- variable names
+  number     = digit+                     -- simple integer numbers
+  space     += comment                    -- allow comments
+  comment   = "#" (~"\n" any)*            -- Python-style single-line comments
+}
