@@ -1,0 +1,15 @@
+statement A : "It's raining"
+statement B : "The ground is wet"
+statement C : "It rained yesterday"
+
+op ifthen P,Q : not(P) or Q
+statement X : A and C ifthen B		// Priority of operations over and
+
+mod Main { 
+	assume true X
+	
+	print prove B	// none
+	
+	assume true C
+	print prove B	// true
+}

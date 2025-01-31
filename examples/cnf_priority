@@ -1,0 +1,14 @@
+
+op exampleA A,B,C : A and B or C
+op A1 A,B,C : (A and B) or C
+op A2 A,B,C : A and (B or C)
+
+op exampleB A,B,C : A or B and C
+op B1 A,B,C : (A or B) and C
+op B2 A,B,C : A or (B and C)
+
+mod Main {
+	print identity exampleA A1		// "false"
+	print identity exampleA A2		// "true"
+	print identity exampleB B1		// "true"
+}

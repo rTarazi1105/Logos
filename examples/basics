@@ -1,0 +1,10 @@
+op ifthen P,Q : not(P) or Q
+
+property is_injective f 1 : f(x) = f(y)
+
+
+var 0 : "zero"
+// succession
+func succ x : "custom" and succ(x) != 0 and is_injective(succ)
+
+var 1 : 1 = succ(0)
