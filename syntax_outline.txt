@@ -6,7 +6,6 @@ func name x,y : <Statement>		value as "name(x,y)"
 / func name x,y = <Value>		/ function as "name"
 statement name : <Statement>		statement
 predicate name x,y : <Statement>	statement
-set name x,y : <Statement>		Set
 op name A,B,C : <Statement>		operation
 property name f,g,h N : <Statement>	statement
 		// each function must have N args
@@ -30,13 +29,25 @@ false					statement
 
 
 CODE ACTIONS
-mod Name {			// module
-	assume <bool> statement	// set statement.truth=bool
-	X = check statement	// print statement.truth
+basic types: bool, Int, str
+// module
+mod Name(b: bool, i: mut Int) -> bool {	// "module"
+	assume statement		// set statement.truth=true
+	X = statement.truth
 	print X
-	X = identity a b	// for any a and b of the same type
-				// eg checks if "A and B" == "A and B"
 }
+CONTROL FLOW
+- if <bool> <action>
+- actions can be enclosed in {}
+- "for" and "match" like Rust
+- return <output type>
+- generators
+
+PACKAGES
+"import basics" loads it
+but you still have to write "basics::abc"
+unless you do "use basics"
+
 
 INTERNAL TYPES
 Statement enum 
@@ -49,12 +60,10 @@ Statement enum
 	// can use functions as arguments in statements
 	// e.g. injective, surjective
 - not(statement)
-- junc(statements..., bool)
-	junc(s...,true) = and(s...)
-		(Reason: You can remove a "True" from a conjunction)
-		junc([],true) = True
-	junc(s...,false) = or(s...)
-		junc([],false) = False
+- conjunc(statements...)
+	empty = True
+- disjunc(statements...)
+	empty = False
 
 Variable or function = Relation[k] where k is the number of arguments
 

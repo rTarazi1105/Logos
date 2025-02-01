@@ -1,0 +1,28 @@
+struct Matrix {
+	contents: [[Int; _]; _]
+}
+
+mod Matrix.cols -> Int {
+	self.0.len
+}
+mod Matrix.rows -> Int {
+	self.0[0].len
+}
+
+// inheritance
+struct Matrix.Stochastic {
+	sum: Int
+}
+
+mod createMatrix(cols: Int, rows: Int) {
+	Matrix {
+		contents: [[0; rows]; cols],
+	}
+}
+
+mod createStochastic(cols: Int, rows: Int) {
+	Matrix.Stochastic {
+		contents: [[0; rows]; cols],
+		sum: 100
+	}
+}

@@ -1,10 +1,36 @@
-op ifthen P,Q : not(P) or Q
+import here::generator;
 
-property is_injective f 1 : f(x) = f(y)
+op ifthen P,Q : not(P) or Q; 
+
+struct Contradiction;
+
+mod Add(array: mut [bool; n]) -> bool { // returns overflow
+	i = 0;
+	while array[i] != none
+		if args[i] == false {
+			args[i] = true;
+			return false;
+		} else {
+			args[i] = false;
+			i = i + 1;
+		}
+	return true;
+}
+
+mod Identity(operation1: op, operation2: op) -> bool {
+	n = operation1.args.len;
+	if n != operation2.args.len return false;
+	
+	args = [false; n];
+	while not(Add(args)) {
+		if operation1(args) != operation2(args) return false;
+	}
+	true
+}
 
 
-var 0 : "zero"
-// succession
-func succ x : "custom" and succ(x) != 0 and is_injective(succ)
+struct Set(predicate<1>); // structs are defined same as Rust
+mod Set.Contains(v: value) -> statement {
+	self.0(v)
+}
 
-var 1 : 1 = succ(0)

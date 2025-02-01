@@ -1,0 +1,7 @@
+mod Range(n: Int) -> Collection {
+	i = 0;
+	while i != n {
+		yield i;
+		i = i + 1;
+	}
+}

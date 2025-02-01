@@ -1,0 +1,8 @@
+use mod::axioms;
+
+mod Main {
+	axioms::Axioms;
+	
+	define var 2 = succ(1);
+	
+}

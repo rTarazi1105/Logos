@@ -1,15 +1,39 @@
-statement A : "It's raining"
-statement B : "The ground is wet"
-statement C : "It rained yesterday"
+import here::basics;
+use basics::ifthen;
+use basics::Contradiction;
 
-op ifthen P,Q : not(P) or Q
-statement X : A and C ifthen B		// Priority of operations over and
+statement A : "It's raining";
+statement B : "The ground is wet";
+statement C : "It rained yesterday";
 
-mod Main { 
-	assume true X
+statement X : A and C ifthen B;		// Priority of operations over "and"
+
+mod Examine(S: statement) { // given that the statement is true
+	if S.truth != true throw Contradiction;
+	match S {
+		conjunction(C) => for I in C {
+			assume I;
+			Examine(I);
+		},
+		disjunction(D) => {
+			T = none;
+			all_false_except_one = true;
+			for I in D
+				if I.truth == none {
+					if T != none break;
+					T = I;
+				} else if I.truth
+					all_false_except_one = false;
+			if all_false_except_one assume T;
+		},
+	}
+}
+
+mod Main {
+	assume X;
 	
-	print prove B	// none
+	print B.truth;		// none
 	
-	assume true C
-	print prove B	// true
+	assume C; Examine(X);
+	print B.truth;		// true
 }
