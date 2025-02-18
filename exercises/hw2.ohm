@@ -89,7 +89,7 @@ MyGrammars {
   Pal8 =
       letterABC letterABC letterABC letterABC letterABC letterABC letterABC letterABC
   letterABC = "a" | "b" | "c"
-/*
+
   ////////////////////////////////
   // 10. Python string literals
   PythonString =
@@ -103,19 +103,30 @@ MyGrammars {
   TripleDoubleString =
       "\"\"\"" TripleDoubleChar* "\"\"\""
   SingleChar =
-      EscapeSequence | ~"'" any
+      EscapeSequence | ~("'" | "\n") any
   DoubleChar =
-      EscapeSequence | ~"\"" any
+      EscapeSequence | ~("\"" | "\n") any
   TripleSingleChar =
-      EscapeSequence | (~("'''")) any
+      EscapeSequence | ~("'''") any
+  TripleDoubleChar =
+      EscapeSequence | ~("\"\"\"") any
   EscapeSequence =
       "\\" EscapedChar
   EscapedChar =
-        "'" 
-      | "\"" 
-      | "n" 
-      | "\\" 
-      | EscapedUnicode
-  EscapedUnicode = /u\{[a-fA-F0-9]+\}/
-*/
+      "'" 
+    | "\"" 
+    | "a"    // \a (alert)
+    | "b"    // \b (backspace)
+    | "f"    // \f (form feed)
+    | "n"    // \n (newline)
+    | "r"    // \r (carriage return)
+    | "t"    // \t (tab)
+    | "v"    // \v (vertical tab)
+    | "\\" 
+    | EscapedX
+    | EscapedUnicode
+  EscapedX = "x" hex hex
+  EscapedUnicode = "u" hex hex hex hex  // \uXXXX
+  hex = "0".."9" | "a".."f" | "A".."F"
+
 }
