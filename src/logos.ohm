@@ -1,0 +1,120 @@
+Logos {
+	Bool = "true" | "false"
+	Int = number
+	Statement
+		= Bool
+		| FilledEquality
+		| FilledRelation
+		| FilledOperation
+		| FilledProperty
+		| DeclaredStatement
+	
+	FilledEquality
+		= Value "=" Value
+	
+	FilledRelation
+		= Relation "[" ListOf<Value, ","> "]"
+	
+	FilledOperation
+		= Operation "[" ListOf<Statement, ","> "]"
+		| Statement Infix Statement				-- only works on binary operations
+	
+	FilledProperty
+		= Property "[" ListOf<Relation, ","> "]"
+	
+	
+	Program = ListOf<Section, ";">
+	Section
+		= DataDecl
+		| StructDecl
+		| ModDecl
+		
+	DataDecl
+		= ValueDecl
+		| RelationDecl 		
+		| OperationDecl
+		| PropertyDecl
+		
+	ValueDecl = id Relation						-- must be relation<1>
+	RelationDecl = id "[" ListOf<ArgValue, ","> "]" Statement
+	ArgValue = id
+	OperationDecl = "operation" id "[" ListOf<ArgStatement, ","> "]" Statement
+	ArgStatement = id
+	PropertyDecl = "property" id "[" ListOf<ArgRelation, ","> "]" Statement
+	ArgRelation = id Numbering
+	
+	Numbering = "<" number ">"
+	
+	
+	StructDecl = "struct" id "{" ListOf<Param, ","> "}" 
+	MethodDecl = "method" Struct "." id "(" ListOf<ModParam, ","> ")" "->" ValidType ModBody
+	ModDecl = "mod" id "(" ListOf<ModParam, ","> ")" "->" ValidType ModBody
+	
+	Param = id ":" ValidType
+	ModParam = "mut"? id ":" ValidType
+	ValidType
+		= "value"
+		| "relation" Numbering?
+		| "statement"
+		| "operation"
+		| "property"
+		| "bool"
+		| "int"
+		| Struct
+	
+	ModBody = "{" ListOf<Action, ";"> "}"
+	Action
+		= ModBody
+		| DataDecl
+		| Assignment
+		| Increment
+		| Return
+		| Yield
+		| IfFlow
+		| ForFlow
+		
+	Assignment = id "=" Variable
+	Increment = Variable "++"
+		
+	Return = "return" ValidType					-- check type
+	Yield = "yield" ValidType					-- ^
+	
+	EvalBool
+		= Bool
+		| LessThan
+		| GreaterThan
+		| EqualTo
+		| Variable
+		| Or
+		| And
+	LessThan = Comparable "<" Comparable
+	GreaterThan = Comparable ">" Comparable
+	EqualTo = Equatable "==" Equatable
+	Or = EvalBool "or" Or
+	And = EvalBool "and" And
+	
+	IfFlow = "if" EvalBool "then" Action Else?
+	Else = "else" Action
+	ForFlow = "for" Arg "in" Collection "do" Action
+	
+	Comparable
+		= Int
+		| Variable						-- check type
+		| UserDefinedComparable
+	Equatable
+		= Comparable
+		| EvalBool
+		| Variable						-- check type
+		| UserDefinedEquatable
+	
+	Collection
+		= "[" ListOf<Variable, ","> "]"
+		| "[" Variable ";" number "]"
+		| Variable						-- check type
+		| UserDefinedCollection
+	
+	Variable
+		= AssignedVariable
+		| FilledMod
+	FilledMod = Mod "(" ListOf<Variable> ")"
+}

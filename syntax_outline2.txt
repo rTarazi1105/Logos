@@ -1,0 +1,38 @@
+Syntax outline 2
+
+Basic types:
+- bool
+- int
+- statement
+	- can be string
+- value
+	- definition: statement
+- relation([value; n]) -> statement
+	- inputs: [value; n]
+	- e.g. "function" and "variable"
+- operation([statement; n]) -> statement
+- property<Type>([Type; n]) -> statement
+	- type can be class or struct
+
+Arrays: [Type; n]
+Have len
+
+Classes
+e.g. Sized (can do .len())
+defines methods
+
+Structs and enums: custom types
+
+match
+for
+if
+return
+yield
+
+{} defines scope
+
+
+
+
+Header is full of constants
+mod { } allows mutation

@@ -2,7 +2,7 @@ import here::basics;
 use basics.data;
 use basics::Set;
 
-property is_injective f 1 : f(x) = f(y) ifthen x = y;
+property is_injective f : f(x) = f(y) ifthen x = y;
 // x and y are ∀ by default
 
 var 0 : "zero";
