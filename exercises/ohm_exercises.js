@@ -49,13 +49,14 @@ const grammars = {
   `,
 
 
-//   notPythonPycharmPyc: String.raw`
-//     write your grammar here
-//   `,
+  notPythonPycharmPyc: String.raw`
+    notPythonPycharmPyc = ~( "python" end | "pycharm" end | "pyc" end ) letter+ | ""
+  `,
 
-//   restrictedFloats: String.raw`
-//     write your grammar here
-//   `,
+  restrictedFloats: String.raw`
+    restrictedFloat = digit+ ("." digit*)? exp
+    exp = ("e" | "E") ("+" | "-")? digit digit? digit?
+  `,
 
   palindromes2358: String.raw`
     main = len2 | len3 | len5 | len8
