@@ -1,0 +1,33 @@
+{
+  "name": "logos",
+  "version": "1.0.0",
+  "description": "Overview/Story: Logos is designed to represent any logical or mathematical statement and to help prove theorems and run math processes.",
+  "main": "index.js",
+  "type": "module",
+  "directories": {
+    "doc": "docs",
+    "example": "examples",
+    "test": "test"
+  },
+  "scripts": {
+    "test": "c8 node --test test/**/*.test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rTarazi1105/Logos.git"
+  },
+  "keywords": [],
+  "author": "Akash, Daniel, Nick, Rayane",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/rTarazi1105/Logos/issues"
+  },
+  "homepage": "https://github.com/rTarazi1105/Logos#readme",
+  "dependencies": {
+    "graph-stringify": "^1.1.0",
+    "ohm-js": "^17.1.0"
+  },
+  "devDependencies": {
+    "c8": "^10.1.3"
+  }
+}
