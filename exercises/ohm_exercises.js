@@ -94,9 +94,38 @@ palindromes2358 = pal8 | pal5 | pal3 | pal2
   `,
 
 
-//   pythonStringLiterals: String.raw`
-//     write your grammar here
-//   `,
+  pythonStringLiterals: String.raw`
+    // A valid Python string literal, with an optional f-prefix.
+    StringLiteral = fPrefix? ( tripleDoubleString | tripleSingleString | doubleString | singleString )
+    fPrefix = "f"
+
+    // Simple quoted strings (allow empty body)
+    singleString = "'" singleBody "'" 
+    doubleString = "\"" doubleBody "\"" 
+
+    // Triple-quoted strings must have at least one character in the body.
+    tripleSingleString = "'''" tripleSingleBody "'''"
+    tripleDoubleString = "\"\"\"" tripleDoubleBody "\"\"\""
+
+    // The bodies allow escapes or any non-delimiter, non-backslash character.
+    singleBody = ( escapedChar | nonSingle )*
+    doubleBody = ( escapedChar | nonDouble )*
+    tripleSingleBody = ( escapedChar | (~"'''") any )+
+    tripleDoubleBody = ( escapedChar | (~"\"\"\"") any )+
+
+    // An escape is a backslash followed by any character.
+    escapedChar = "\\" any
+
+    // In a single-quoted string, any character except a single quote or backslash.
+    nonSingle = ~("'" | "\\") any
+    // In a double-quoted string, any character except a double quote or backslash.
+    nonDouble = ~( "\"" | "\\" ) any
+    // In a triple-single-quoted string, the sequence ''' or a backslash must not appear.
+    nonTripleSingle = ~( "'''" | "\\" ) any
+    // In a triple-double-quoted string, the sequence """ or a backslash must not appear.
+    nonTripleDouble = ~( "\"\"\"" | "\\" ) any
+                                 
+  `,
 }
 
 function matches(name, string) {
