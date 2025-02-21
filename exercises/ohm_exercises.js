@@ -59,21 +59,38 @@ const grammars = {
   `,
 
   palindromes2358: String.raw`
-    main = len2 | len3 | len5 | len8
-    
-    len2 = letterABC letterABC 
-            &((letterABC letterABC))
-    
-    len3 = letterABC letterABC letterABC
-            &((letterABC letterABC letterABC) )
+palindromes2358 = pal8 | pal5 | pal3 | pal2
 
-    len5 = letterABC letterABC letterABC letterABC letterABC 
-            &((letterABC letterABC letterABC letterABC letterABC))
+    // 2-letter palindromes: only "aa", "bb", or "cc"
+    pal2 = "aa" | "bb" | "cc"
 
-    len8 = letterABC letterABC letterABC letterABC letterABC letterABC letterABC letterABC 
-            &((letterABC letterABC letterABC letterABC letterABC letterABC letterABC letterABC))
+    // 3-letter palindromes: x letter x, with letter any of a,b,c.
+    pal3 = "a" validLetter "a"
+          | "b" validLetter "b"
+          | "c" validLetter "c"
 
-    letterABC = "a" | "b" | "c"
+    // 5-letter palindromes: outer letters must match and the inner 3 letters form a palindrome.
+    pal5 = "a" pal3 "a"
+          | "b" pal3 "b"
+          | "c" pal3 "c"
+
+    // 8-letter palindromes: outer letter + 6-letter even palindrome + same outer letter.
+    pal8 = "a" even6 "a"
+          | "b" even6 "b"
+          | "c" even6 "c"
+
+    // even6: 6-letter palindrome is built as letter + 4-letter even palindrome + same letter.
+    even6 = "a" even4 "a"
+          | "b" even4 "b"
+          | "c" even4 "c"
+
+    // even4: 4-letter palindrome is letter + 2-letter palindrome + same letter.
+    even4 = "a" pal2 "a"
+          | "b" pal2 "b"
+          | "c" pal2 "c"
+
+    // the allowed letters
+    validLetter = "a" | "b" | "c"
   `,
 
 
