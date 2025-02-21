@@ -1,0 +1,85 @@
+EverythingProgram {
+  Program
+    = _ FunctionDeclaration* Expression _
+
+  FunctionDeclaration
+    = "func" _ id:Identifier _ "(" _ params:ParameterList? _ ")" _ body:ExpressionSeq _ end
+
+  ParameterList
+    = id:Identifier (_ "," _ id:Identifier)*
+
+  ExpressionSeq
+    = head:Expression tail:(_ ";" _ Expression)* _ ";"?
+
+  Expression
+    = ConditionalExp
+
+  ConditionalExp
+    = AddExp _ "if" _ cond:AddExp "else" _ alt:Expression  -- cond
+    | AddExp                                                            -- noCond
+
+  AddExp
+    = left:MulExp (_ op:("+" | "-") _ right:MulExp)*
+
+  MulExp
+    = left:UnaryExp (_ op:("*" | "/") _ right:UnaryExp)*
+
+  UnaryExp
+    = "-" _ exp:UnaryExp   -- neg
+    | PostfixExp           -- post
+
+  PostfixExp
+    = prim:PrimaryExp _ fact:"!"*   -- fact
+
+  PrimaryExp
+    = "(" _ exp:Expression _ ")"    -- paren
+    | fc:FunctionCall               -- funcCall
+    | lit:Literal                   -- lit
+    | id:Identifier                 -- id
+
+  FunctionCall
+    = id:Identifier _ "(" _ args:ArgumentList? _ ")"
+
+  ArgumentList
+    = head:Expression tail:(_ "," _ Expression)*
+
+  Literal
+    = NumericLiteral
+    | StringLiteral
+
+  NumericLiteral
+    = digit+ ("." digit+)? (("e" | "E") ("+" | "-")? digit+)?
+
+  StringLiteral
+    = "\"" strChar* "\""
+
+  strChar
+  = escapeSequence
+  | ~("\\" | "\"") any
+
+  escapeSequence
+    = "\\" ( "'" | "\"" | "n" | "\\" | ("u{" hexDigits "}") )
+
+  hexDigits
+    = hexDigit hexDigit{0,5}
+
+  hexDigit
+    = "0".."9" | "a".."f" | "A".."F"
+
+  Keyword
+    = "func" | "end" | "if" | "else"
+  Identifier
+    = ~Keyword (letter | "@") (letter | digit | "_" | "@" | "$")*
+
+  digit
+    = "0".."9"
+  letter
+    = "a".."z" | "A".."Z"
+
+  comment
+    = "--" (~"\n" any)* ("\n" | end)
+  space
+    = " " | "\t" | "\n"
+  _
+    = (space | comment)*
+}
