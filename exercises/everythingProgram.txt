@@ -1,0 +1,34 @@
+-- Returns a simple numeric literal.
+func getBaseNumber()
+  21
+end
+
+-- using a string literal uswithing all allowed escape sequences.
+func getEscapedMessage()
+  "Hello, world!\nQuote: \"Test\", escaped: \' and backslash: \\ and unicode: \u{9A8}"
+end
+
+-- applies factorial operator to its numeric argument.
+func computeFactorial(value)
+  value!
+end
+
+-- unary negation (highest after factorial),
+-- multiplicative and additive operations with proper grouping,
+-- conditional expression of the form: y if x else z.
+func calculateArithmetic(x, y)
+  -x;                      -- Unary prefix negation applied to x.
+  x + y * (x - y) / 2;       -- Multiplicative and additive operations.
+  (x + y) if x else (x - y)  -- Conditional expression.
+end
+
+-- uses a conditional inside a function call, using nested operator.
+func processExpression(a, b)
+  computeFactorial[ (calculateArithmetic[a, b] if a else computeFactorial[b]) ]
+end
+
+-- Final expression:
+--   - top-level conditional expression,
+--   - function calls using square brackets,
+--   - numeric literals and proper arithmetic
+( processExpression[ getBaseNumber[], 10 ] * (3 + 4) ) if (5 - 5) else ( computeFactorial[ 3 ] / 2.5e0 )
