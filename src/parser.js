@@ -4,7 +4,7 @@
 import * as fs from "node:fs"
 import * as ohm from "ohm-js"
 
-const grammar = ohm.grammar(fs.readFileSync("src/carlos.ohm"))
+const grammar = ohm.grammar(fs.readFileSync("src/logos.ohm"))
 
 // Returns the Ohm match if successful, otherwise throws an error
 export default function parse(sourceCode) {

@@ -2,7 +2,8 @@ Logos {
 	Literal
 		= Bool
 		| Int
-		| "\"" char* "\""
+		| String
+	String = "\"" char* "\""
 	char = ~"\"" any
 	Bool = "true" | "false"
 	Int
@@ -12,37 +13,45 @@ Logos {
 		
 	Statement
 		= Bool
-		| "(" Statement ")"
-		| "not" Statement
-		| Relation "[" ListOf<Value, ","> "]"
-		| Operation "[" ListOf<Statement, ","> "]"
-		| Statement1 Infix Statement2				-- only works on binary operations
-		| Property "[" ListOf<Relation, ","> "]"
+		| ParenStatement
+		| Negation
+		| FilledRelation
+		| FilledOperation
+		| FilledInfix
+		| FilledProperty
 		| DeclaredStatement
-		| Value1 "=" Value2
+		| Equality
+	ParenStatement = "(" Statement ")"
+	Negation = "not" Statement
+	FilledRelation = Relation "[" ListOf<Value, ","> "]"
+	FilledOperation = Operation "[" ListOf<Statement, ","> "]"
+	FilledInfix = Statement1 Infix Statement2				// only works on binary operations
+	FilledProperty = Property "[" ListOf<Relation, ","> "]"
+	Equality = Value1 "=" Value2
+		
 	Statement1 = Statement
 	Statement2 = Statement
 	Value1 = Value
 	Value2 = Value
 	
 	Infix
-		= "&&"							-- and
-		| "||"							-- or
-		| "=="							-- equals for statements
+		= "&&"							// and
+		| "||"							// or
+		| "=="							// equals for statements
 		| UserDefinedInfix
 	
 	
 	Program = Section+
 	Section
-		= DataDecl ";"
+		= DataDeclColon
 		| StructDecl
 		| EnumDecl
 		| ClassDecl
 		| MethodDecl
 		| ModDecl
 		| ClassImpl
-		| ClassOfClassDecl
-		
+	
+	DataDeclColon = DataDecl ";"	
 	DataDecl
 		= ValueDecl
 		| RelationDecl
@@ -56,9 +65,9 @@ Logos {
 	ValueDecl = "value" id1 (":" Relation)?
 	RelationDecl = id1 ":" ListOf<ArgValue, ","> ":" Statement
 	ArgValue = id1
-	OperationDecl = "operation" id1 ":" ListOf<ArgStatement, ","> ":" Statement
+	OperationDecl = "operation" id2 ":" ListOf<ArgStatement, ","> ":" Statement
 	ArgStatement = id1
-	InfixDecl = "infix" id1 Operation
+	InfixDecl = "infix" id2 Operation
 	PropertyDecl = "property" id1 ":" ListOf<ArgRelation, ","> ":" Statement
 	ArgRelation = id1 Numbering
 	StatementDecl = id1 ":" Statement
@@ -70,47 +79,64 @@ Logos {
 	StructDecl = "struct" id2 TypeParam? SuperClass? "{" ListOf<Param, ","> "}" 
 	EnumDecl = "enum" id2 TypeParam? "{" ListOf<Param, ","> "}"
 	
-	ModDecl = "mod" id2 TypeParam? "(" ListOf<ModParam, ",">? ")" ReturnType? ModBody
+	ModDecl = "mod" id2 ModHead ModBody
+	ModHead = TypeParam? "(" ListOf<ModParam, ",">? ")" ReturnType?
 	
-	MethodDecl = "mod" (Struct | Class) "." id2 TypeParam? "(" ListOf<ModParam | SelfParam, ",">? ")" ReturnType? ModBody
+	MethodDecl = "mod" (Struct | Class) "." id2 MethodHead ModBody
+	MethodHead = TypeParam? "(" ListOf<ModParamWithSelf, ",">? ")" ReturnType?
+	ModParamWithSelf = ModParam | SelfParam
 	
-	ReturnType = "->" (Mutable? ValidType | "none")
+	ReturnType = "->" MutableValidTypeOrNone
+	MutableValidTypeOrNone = MutableValidType | None
+	MutableValidType = Mutable? ValidType
+	None = "none"
 	
 	ClassDecl = "class" id2 TypeParam? SuperClass? ClassBody
-	SuperClass = ":" ListOf<Class | "Error", ",">
+	SuperClass = ":" ListOf<ClassInclError, ",">
+	ClassInclError = Class | "Error"
 	ClassBody = "{" ClassLine* "}"
 	ClassLine
-		= Param ";"
-		| "mod" MethodHead
+		= ClassField
+		| ClassMod
+	ClassField = Param ";"
+	ClassMod = "mod" id2 MethodHead ModBodyOrColon
+	ModBodyOrColon = ModBody | ";"
 	ClassImpl = ValidType "impl" Class ClassBody
 	
-	TypeParam = ("<" ListOf<id2 SuperClass?, ","> ">")	-- no superclass --> Any
+	TypeParam = ("<" ListOf<IdAndSuperClass, ","> ">")		// no superclass = Any
+	IdAndSuperClass = id2 SuperClass?
 	FilledTypeParam = ("<" ListOf<ValidType, ","> ">")
 	
-	Param = (id2 ":")? ValidType				-- if no id: let it be 0,1 etc
+	Param = (id2 ":")? ParamType				// if no id: let it be 0,1 etc
 	SelfParam = Mutable? "self"
-	ModParam = Mutable? ParamWithOptionalType
+	ModParam = Mutable? Param
 	Mutable = "mut"
 	
+	ParamType = ValidType | TypeParamArg
 	ValidType
 		= DefaultValidType
+		| NumberedRelation
 		| Struct
-		| Class FilledTypeParam?
+		| ClassMaybeWithTypeParam
 		| Enum
 		| CollectionType
-	DefaultValidType = 
+	ClassMaybeWithTypeParam = Class FilledTypeParam?
+	NumberedRelation = "relation" Numbering?
+	DefaultValidType
 		= "value"
 		| "statement"
 		| "operation"
 		| "property"
 		| "bool"
 		| "int"
-		| "relation" Numbering?
 		| "Error"
 	CollectionType
-		= "[" ListOf<ValidType, ","> "]"
-		| "[" ValidType ";" number "]"
-		| "[" ValidType "]"
+		= FullArrayType
+		| CopiedArrayType
+		| ListType
+	FullArrayType = "[" ListOf<ValidType, ","> "]"
+	CopiedArrayType = "[" ValidType ";" number "]"
+	ListType = "[" ValidType "]"
 	
 	ModBody = "{" ListOf<Action, ";">? "}"
 	Action
@@ -123,8 +149,9 @@ Logos {
 		| "break"
 		| "continue"
 		| MethodCall
-		| Mod Call
+		| ModCall
 	MethodCall = Variable "." Method Call
+	ModCall = Mod Call
 	Call = "(" ListOf<Readable, ",">? ")"
 	
 	Assignment = id2 "=" Readable
@@ -132,17 +159,23 @@ Logos {
 	Increment = Variable "++"
 	Decrement = Variable "--"
 	
-	Return = ("return" | "yield") ReturnUp? Variable?
-	ReturnUp = "." number | ".."
+	Return = ReturnOrYield ReturnUp? Variable?
+	ReturnOrYield = "return" | "yield"
+	ReturnUp = DotNumber | DotDot
+	DotNumber = "." number
+	DotDot = ".."
 	
 	EvalBool
-		= EvalBool1 "or" EvalBool2
-		| EvalBool1 "and" EvalBool2
-		| "!" EvalBool
+		= And
+		| Or
+		| Not
 		| Bool
 		| LessThan | GreaterThan
 		| EqualTo | Unequal
-		| Variable						-- will need to add statement.truth
+		| Variable						// will need to add statement.truth
+	And = EvalBool1 "and" EvalBool2
+	Or = EvalBool1 "or" EvalBool2
+	Not = "!" EvalBool
 	EvalBool1 = EvalBool
 	EvalBool2 = EvalBool
 		
@@ -163,39 +196,53 @@ Logos {
 	MatchStart
 		= ValidType
 		| "none"
-		| "if" EvalBool
+		| IfEvalBool
+	IfEvalBool = "if" EvalBool
 	
 	Comparable
 		= Int
-		| Variable					-- can be a variable that's not int
+		| Variable					// can be a variable that's not int
 	Equatable
 		= Comparable
 		| EvalBool
 		| "none"
 		| Variable
 	
-	Collection						-- range will be built-in. Count(int), Range(int, int).
-		= "[" ListOf<Variable, ","> "]"
-		| "[" Variable ";" Int "]"
-		| Loop						-- with "yield"
+	Collection						// range will be built-in. Count(int), Range(int, int).
+		= FullArray
+		| CopiedArray
+		| Loop						// with "yield"
 		| Variable
+	FullArray = "[" ListOf<Variable, ","> "]"
+	CopiedArray = "[" Variable ";" Int "]"
 	
 	Variable
 		= AssignedVariable
-		| Variable "." Field
-		| Variable "." number				-- unnamed field, or list index
-		| Collection "." number
+		| CollectionIndexed
+		| VarField
+		| VarNum
 		| MethodCall
-		| Mod Call
+		| ModCall
+	CollectionIndexed = Collection "." number
+	VarField = Variable "." Field
+	VarNum = Variable "." number				// unnamed field, or list index
 	
 	number = digit+
-	id1 = ~keyword alnum					-- for data in the header
-	id2 = ~keyword letter alnum*				-- for types and variables in body
+	id1 = ~keyword alnum					// for data in the header
+	id2 = ~keyword letter alnum*				// for types and variables in body
 	dot = "."
 	keyword
-		= Bool
-		| Mutable
-		| DefaultValidType
+		= "true" | "false"
+		| "mut"
+		| "none"
+		| "value"
+		| "statement"
+		| "operation"
+		| "property"
+		| "bool"
+		| "int"
+		| "Error"
+		| "relation"
 		| "infix"
 		| "struct"
 		| "enum"
@@ -210,8 +257,22 @@ Logos {
 		| "or"
 		| "and"
 		| "not"
-		| "none"
 		| "break"
 		| "continue"
 		| "len"
+		
+	DeclaredStatement = id1
+	Relation = id1
+	Operation = id2
+	UserDefinedInfix = id2
+	Property = id1
+	Value = id1
+	Struct = id2
+	Class = id2
+	TypeParamArg = id2
+	Method = id2
+	Mod = id2
+	Enum = id2
+	AssignedVariable = id2
+	Field = id2
 }
