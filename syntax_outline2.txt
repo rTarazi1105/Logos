@@ -17,11 +17,8 @@ Basic types:
 Arrays: [Type; n]
 Have len
 
-Classes
-e.g. Sized (can do .len())
-defines methods
-
 Structs and enums: custom types
+An object can only have one type, but can be multiple classes
 
 match
 for

@@ -1,18 +1,29 @@
 Logos {
+	Literal
+		= Bool
+		| Int
+		| "\"" char* "\""
+	char = ~"\"" any
 	Bool = "true" | "false"
 	Int
 		= number
 		| Variable
+		
+		
 	Statement
 		= Bool
 		| "(" Statement ")"
 		| "not" Statement
-		| Value "=" Value
 		| Relation "[" ListOf<Value, ","> "]"
 		| Operation "[" ListOf<Statement, ","> "]"
-		| Statement Infix Statement				-- only works on binary operations
+		| Statement1 Infix Statement2				-- only works on binary operations
 		| Property "[" ListOf<Relation, ","> "]"
 		| DeclaredStatement
+		| Value1 "=" Value2
+	Statement1 = Statement
+	Statement2 = Statement
+	Value1 = Value
+	Value2 = Value
 	
 	Infix
 		= "&&"							-- and
@@ -30,6 +41,7 @@ Logos {
 		| MethodDecl
 		| ModDecl
 		| ClassImpl
+		| ClassOfClassDecl
 		
 	DataDecl
 		= ValueDecl
@@ -41,44 +53,49 @@ Logos {
 		| Assume
 		| Assumption
 		
-	ValueDecl = "value" id (":" Relation)?
-	RelationDecl = id ":" ListOf<ArgValue, ","> ":" Statement
-	ArgValue = id
-	OperationDecl = "operation" id ":" ListOf<ArgStatement, ","> ":" Statement
-	ArgStatement = id
-	InfixDecl = "infix" id Operation
-	PropertyDecl = "property" id ":" ListOf<ArgRelation, ","> ":" Statement
-	ArgRelation = id Numbering
-	StatementDecl = id ":" Statement
+	ValueDecl = "value" id1 (":" Relation)?
+	RelationDecl = id1 ":" ListOf<ArgValue, ","> ":" Statement
+	ArgValue = id1
+	OperationDecl = "operation" id1 ":" ListOf<ArgStatement, ","> ":" Statement
+	ArgStatement = id1
+	InfixDecl = "infix" id1 Operation
+	PropertyDecl = "property" id1 ":" ListOf<ArgRelation, ","> ":" Statement
+	ArgRelation = id1 Numbering
+	StatementDecl = id1 ":" Statement
 	Assume = Statement Bool
-	Assumption = "assume" id ":" Assume
+	Assumption = "assume" id1 ":" Assume
 	
 	Numbering = "<" number ">"
 	
-	StructDecl = "struct" id SuperClass? "{" ListOf<Param, ","> "}" 
-	EnumDecl = "enum" id "{" ListOf<Param, ","> "}"
-	MethodDecl = "method" (Struct | Class) "." MethodHead ModBody
-	ModDecl = "mod" ModHead ModBody
-	ModHead = id "(" ListOf<ModParam, ",">? ")" ReturnType?
-	MethodHead = id "(" ListOf<ModParam | SelfParam, ",">? ")" ReturnType?
-	ReturnType = "->" ValidType
+	StructDecl = "struct" id2 TypeParam? SuperClass? "{" ListOf<Param, ","> "}" 
+	EnumDecl = "enum" id2 TypeParam? "{" ListOf<Param, ","> "}"
 	
-	ClassDecl = "class" id SuperClass? ClassBody
-	SuperClass = ":" ListOf<Class, ",">
+	ModDecl = "mod" id2 TypeParam? "(" ListOf<ModParam, ",">? ")" ReturnType? ModBody
+	
+	MethodDecl = "mod" (Struct | Class) "." id2 TypeParam? "(" ListOf<ModParam | SelfParam, ",">? ")" ReturnType? ModBody
+	
+	ReturnType = "->" (Mutable? ValidType | "none")
+	
+	ClassDecl = "class" id2 TypeParam? SuperClass? ClassBody
+	SuperClass = ":" ListOf<Class | "Error", ",">
 	ClassBody = "{" ClassLine* "}"
 	ClassLine
-		= Assignment ";"
-		| ModDecl
+		= Param ";"
+		| "mod" MethodHead
 	ClassImpl = ValidType "impl" Class ClassBody
 	
-	Param = id ":" ValidType
+	TypeParam = ("<" ListOf<id2 SuperClass?, ","> ">")	-- no superclass --> Any
+	FilledTypeParam = ("<" ListOf<ValidType, ","> ">")
+	
+	Param = (id2 ":")? ValidType				-- if no id: let it be 0,1 etc
 	SelfParam = Mutable? "self"
-	ModParam = Mutable? id ":" ValidType
+	ModParam = Mutable? ParamWithOptionalType
 	Mutable = "mut"
+	
 	ValidType
 		= DefaultValidType
 		| Struct
-		| Class
+		| Class FilledTypeParam?
 		| Enum
 		| CollectionType
 	DefaultValidType = 
@@ -89,22 +106,20 @@ Logos {
 		| "bool"
 		| "int"
 		| "relation" Numbering?
-		| "error"
+		| "Error"
 	CollectionType
 		= "[" ListOf<ValidType, ","> "]"
 		| "[" ValidType ";" number "]"
 		| "[" ValidType "]"
 	
-	ModBody = "{" ListOf<Action, ";"> "}"
+	ModBody = "{" ListOf<Action, ";">? "}"
 	Action
 		= ModBody
 		| DataDecl
 		| Assignment
 		| Increment | Decrement
 		| Return
-		| IfFlow
-		| ForFlow
-		| MatchFlow
+		| ControlFlow
 		| "break"
 		| "continue"
 		| MethodCall
@@ -112,7 +127,8 @@ Logos {
 	MethodCall = Variable "." Method Call
 	Call = "(" ListOf<Variable, ",">? ")"
 	
-	Assignment = id "=" Variable | IfFlow | ForFlow | MatchFlow
+	Assignment = id2 "=" Readable
+	Readable = Literal | Variable | ControlFlow
 	Increment = Variable "++"
 	Decrement = Variable "--"
 	
@@ -120,27 +136,33 @@ Logos {
 	ReturnUp = "." number | ".."
 	
 	EvalBool
-		= Bool
+		= EvalBool1 "or" EvalBool2
+		| EvalBool1 "and" EvalBool2
+		| Bool
 		| LessThan
 		| GreaterThan
 		| EqualTo
-		| Variable
-		| EvalBool "or" EvalBool
-		| EvalBool "and" EvalBool
 		| "!" EvalBool
+		| Variable						-- will need to add statement.truth
+	EvalBool1 = EvalBool
+	EvalBool2 = EvalBool
+		
 	LessThan = Comparable "<" Comparable
 	GreaterThan = Comparable ">" Comparable
 	EqualTo = Equatable "==" Equatable
 	
+	ControlFlow = IfFlow | MatchFlow | Loop
+	Loop = WhileFlow | ForFlow
 	IfFlow = "if" EvalBool "then" Action Else?
 	Else = "else" Action
 	ForFlow = "for" Arg "in" Collection "do" Action
 	Arg = ~Variable
+	WhileFlow = "while" EvalBool "do" Action
 	MatchFlow = "match" Variable ":" ListOf<MatchLine, ",">
 	MatchLine = MatchStart "=>" Action
 	MatchStart
 		= ValidType
-		| none
+		| "none"
 		| "if" EvalBool
 	
 	Comparable
@@ -155,17 +177,20 @@ Logos {
 	Collection						-- range will be built-in
 		= "[" ListOf<Variable, ","> "]"
 		| "[" Variable ";" Int "]"
+		| Loop						-- with "yield"
 		| Variable
 	
 	Variable
 		= AssignedVariable
 		| Variable "." Field
+		| Variable "." number				-- unnamed field, or list index
 		| Collection "." number
 		| MethodCall
 		| Mod Call
 	
 	number = digit+
-	id = ~keyword alnum
+	id1 = ~keyword alnum					-- for data in the header
+	id2 = ~keyword letter alnum*				-- for types and variables in body
 	dot = "."
 	keyword
 		= Bool
@@ -185,6 +210,7 @@ Logos {
 		| "or"
 		| "and"
 		| "not"
+		| "none"
 		| "break"
 		| "continue"
 		| "len"
