@@ -125,7 +125,7 @@ Logos {
 		| MethodCall
 		| Mod Call
 	MethodCall = Variable "." Method Call
-	Call = "(" ListOf<Variable, ",">? ")"
+	Call = "(" ListOf<Readable, ",">? ")"
 	
 	Assignment = id2 "=" Readable
 	Readable = Literal | Variable | ControlFlow
@@ -138,11 +138,10 @@ Logos {
 	EvalBool
 		= EvalBool1 "or" EvalBool2
 		| EvalBool1 "and" EvalBool2
-		| Bool
-		| LessThan
-		| GreaterThan
-		| EqualTo
 		| "!" EvalBool
+		| Bool
+		| LessThan | GreaterThan
+		| EqualTo | Unequal
 		| Variable						-- will need to add statement.truth
 	EvalBool1 = EvalBool
 	EvalBool2 = EvalBool
@@ -150,6 +149,7 @@ Logos {
 	LessThan = Comparable "<" Comparable
 	GreaterThan = Comparable ">" Comparable
 	EqualTo = Equatable "==" Equatable
+	Unequal = Equatable "!=" Equatable
 	
 	ControlFlow = IfFlow | MatchFlow | Loop
 	Loop = WhileFlow | ForFlow
@@ -174,7 +174,7 @@ Logos {
 		| "none"
 		| Variable
 	
-	Collection						-- range will be built-in
+	Collection						-- range will be built-in. Count(int), Range(int, int).
 		= "[" ListOf<Variable, ","> "]"
 		| "[" Variable ";" Int "]"
 		| Loop						-- with "yield"
