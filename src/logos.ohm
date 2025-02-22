@@ -6,24 +6,19 @@ Logos {
 	Statement
 		= Bool
 		| "(" Statement ")"
-		| FilledEquality
-		| FilledRelation
-		| FilledOperation
-		| FilledProperty
+		| "not" Statement
+		| Value "=" Value
+		| Relation "[" ListOf<Value, ","> "]"
+		| Operation "[" ListOf<Statement, ","> "]"
+		| Statement Infix Statement				-- only works on binary operations
+		| Property "[" ListOf<Relation, ","> "]"
 		| DeclaredStatement
 	
-	FilledEquality
-		= Value "=" Value
-	
-	FilledRelation
-		= Relation "[" ListOf<Value, ","> "]"
-	
-	FilledOperation
-		= Operation "[" ListOf<Statement, ","> "]"
-		| Statement Infix Statement				-- only works on binary operations
-	
-	FilledProperty
-		= Property "[" ListOf<Relation, ","> "]"
+	Infix
+		= "&&"							-- and
+		| "||"							-- or
+		| "=="							-- equals for statements
+		| UserDefinedInfix
 	
 	
 	Program = Section+
@@ -44,8 +39,9 @@ Logos {
 		| PropertyDecl
 		| StatementDecl
 		| Assume
+		| Assumption
 		
-	ValueDecl = "value" id ":" Relation						-- must be relation<1>
+	ValueDecl = "value" id (":" Relation)?
 	RelationDecl = id ":" ListOf<ArgValue, ","> ":" Statement
 	ArgValue = id
 	OperationDecl = "operation" id ":" ListOf<ArgStatement, ","> ":" Statement
@@ -55,6 +51,7 @@ Logos {
 	ArgRelation = id Numbering
 	StatementDecl = id ":" Statement
 	Assume = Statement Bool
+	Assumption = "assume" id ":" Assume
 	
 	Numbering = "<" number ">"
 	
@@ -128,13 +125,12 @@ Logos {
 		| GreaterThan
 		| EqualTo
 		| Variable
-		| Or
-		| And
+		| EvalBool "or" EvalBool
+		| EvalBool "and" EvalBool
+		| "!" EvalBool
 	LessThan = Comparable "<" Comparable
 	GreaterThan = Comparable ">" Comparable
 	EqualTo = Equatable "==" Equatable
-	Or = EvalBool "or" Or
-	And = EvalBool "and" And
 	
 	IfFlow = "if" EvalBool "then" Action Else?
 	Else = "else" Action
@@ -188,6 +184,7 @@ Logos {
 		| "do"
 		| "or"
 		| "and"
+		| "not"
 		| "break"
 		| "continue"
 		| "len"
