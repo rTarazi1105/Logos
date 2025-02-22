@@ -1,7 +1,7 @@
 import { describe, it } from "node:test"
 import assert from "node:assert/strict"
 import parse from "../src/parser.js"
-
+// https://cs.lmu.edu/~ray/notes/howtowriteacompiler/
 // Programs expected to be syntactically correct
 const syntaxChecks = [
   ["simplest syntactically correct program", "yes : true;"],
