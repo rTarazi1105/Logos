@@ -80,7 +80,9 @@ Logos {
 	EnumDecl = "enum" id2 TypeParam? "{" ListOf<Param, ","> "}"
 	
 	ModDecl = "mod" id2 ModHead ModBody
-	ModHead = TypeParam? "(" ListOf<ModParam, ",">? ")" ReturnType?
+	ModHead = TypeParam? "(" OptModParams ")" ReturnType?
+	OptModParams = ListOf<ModParam, ","> | NoParams
+	NoParams = ""
 	
 	MethodDecl = "mod" (Struct | Class) "." id2 MethodHead ModBody
 	MethodHead = TypeParam? "(" ListOf<ModParamWithSelf, ",">? ")" ReturnType?
@@ -229,7 +231,7 @@ Logos {
 	
 	number = digit+
 	id1 = ~keyword alnum					// for data in the header
-	id2 = ~keyword letter alnum*				// for types and variables in body
+	id2 = letter alnum*				// for types and variables in body
 	dot = "."
 	keyword
 		= "true" | "false"

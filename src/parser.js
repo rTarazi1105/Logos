@@ -8,7 +8,7 @@ const grammar = ohm.grammar(fs.readFileSync("src/logos.ohm"))
 
 // Returns the Ohm match if successful, otherwise throws an error
 export default function parse(sourceCode) {
-  const match = grammar.match(sourceCode)
+  const match = grammar.match(sourceCode, "Program")
   if (!match.succeeded()) throw new Error(match.message)
   return match
 }
