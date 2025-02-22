@@ -1,8 +1,11 @@
 Logos {
 	Bool = "true" | "false"
-	Int = number
+	Int
+		= number
+		| Variable
 	Statement
 		= Bool
+		| "(" Statement ")"
 		| FilledEquality
 		| FilledRelation
 		| FilledOperation
@@ -23,61 +26,101 @@ Logos {
 		= Property "[" ListOf<Relation, ","> "]"
 	
 	
-	Program = ListOf<Section, ";">
+	Program = Section+
 	Section
-		= DataDecl
+		= DataDecl ";"
 		| StructDecl
+		| EnumDecl
+		| ClassDecl
+		| MethodDecl
 		| ModDecl
+		| ClassImpl
 		
 	DataDecl
 		= ValueDecl
-		| RelationDecl 		
+		| RelationDecl
 		| OperationDecl
+		| InfixDecl
 		| PropertyDecl
+		| StatementDecl
+		| Assume
 		
-	ValueDecl = id Relation						-- must be relation<1>
-	RelationDecl = id "[" ListOf<ArgValue, ","> "]" Statement
+	ValueDecl = "value" id ":" Relation						-- must be relation<1>
+	RelationDecl = id ":" ListOf<ArgValue, ","> ":" Statement
 	ArgValue = id
-	OperationDecl = "operation" id "[" ListOf<ArgStatement, ","> "]" Statement
+	OperationDecl = "operation" id ":" ListOf<ArgStatement, ","> ":" Statement
 	ArgStatement = id
-	PropertyDecl = "property" id "[" ListOf<ArgRelation, ","> "]" Statement
+	InfixDecl = "infix" id Operation
+	PropertyDecl = "property" id ":" ListOf<ArgRelation, ","> ":" Statement
 	ArgRelation = id Numbering
+	StatementDecl = id ":" Statement
+	Assume = Statement Bool
 	
 	Numbering = "<" number ">"
 	
+	StructDecl = "struct" id SuperClass? "{" ListOf<Param, ","> "}" 
+	EnumDecl = "enum" id "{" ListOf<Param, ","> "}"
+	MethodDecl = "method" (Struct | Class) "." MethodHead ModBody
+	ModDecl = "mod" ModHead ModBody
+	ModHead = id "(" ListOf<ModParam, ",">? ")" ReturnType?
+	MethodHead = id "(" ListOf<ModParam | SelfParam, ",">? ")" ReturnType?
+	ReturnType = "->" ValidType
 	
-	StructDecl = "struct" id "{" ListOf<Param, ","> "}" 
-	MethodDecl = "method" Struct "." id "(" ListOf<ModParam, ","> ")" "->" ValidType ModBody
-	ModDecl = "mod" id "(" ListOf<ModParam, ","> ")" "->" ValidType ModBody
+	ClassDecl = "class" id SuperClass? ClassBody
+	SuperClass = ":" ListOf<Class, ",">
+	ClassBody = "{" ClassLine* "}"
+	ClassLine
+		= Assignment ";"
+		| ModDecl
+	ClassImpl = ValidType "impl" Class ClassBody
 	
 	Param = id ":" ValidType
-	ModParam = "mut"? id ":" ValidType
+	SelfParam = Mutable? "self"
+	ModParam = Mutable? id ":" ValidType
+	Mutable = "mut"
 	ValidType
+		= DefaultValidType
+		| Struct
+		| Class
+		| Enum
+		| CollectionType
+	DefaultValidType = 
 		= "value"
-		| "relation" Numbering?
 		| "statement"
 		| "operation"
 		| "property"
 		| "bool"
 		| "int"
-		| Struct
+		| "relation" Numbering?
+		| "error"
+	CollectionType
+		= "[" ListOf<ValidType, ","> "]"
+		| "[" ValidType ";" number "]"
+		| "[" ValidType "]"
 	
 	ModBody = "{" ListOf<Action, ";"> "}"
 	Action
 		= ModBody
 		| DataDecl
 		| Assignment
-		| Increment
+		| Increment | Decrement
 		| Return
-		| Yield
 		| IfFlow
 		| ForFlow
-		
-	Assignment = id "=" Variable
+		| MatchFlow
+		| "break"
+		| "continue"
+		| MethodCall
+		| Mod Call
+	MethodCall = Variable "." Method Call
+	Call = "(" ListOf<Variable, ",">? ")"
+	
+	Assignment = id "=" Variable | IfFlow | ForFlow | MatchFlow
 	Increment = Variable "++"
-		
-	Return = "return" ValidType					-- check type
-	Yield = "yield" ValidType					-- ^
+	Decrement = Variable "--"
+	
+	Return = ("return" | "yield") ReturnUp? Variable?
+	ReturnUp = "." number | ".."
 	
 	EvalBool
 		= Bool
@@ -96,25 +139,56 @@ Logos {
 	IfFlow = "if" EvalBool "then" Action Else?
 	Else = "else" Action
 	ForFlow = "for" Arg "in" Collection "do" Action
+	Arg = ~Variable
+	MatchFlow = "match" Variable ":" ListOf<MatchLine, ",">
+	MatchLine = MatchStart "=>" Action
+	MatchStart
+		= ValidType
+		| none
+		| "if" EvalBool
 	
 	Comparable
 		= Int
-		| Variable						-- check type
-		| UserDefinedComparable
+		| Variable					-- can be a variable that's not int
 	Equatable
 		= Comparable
 		| EvalBool
-		| Variable						-- check type
-		| UserDefinedEquatable
+		| "none"
+		| Variable
 	
-	Collection
+	Collection						-- range will be built-in
 		= "[" ListOf<Variable, ","> "]"
-		| "[" Variable ";" number "]"
-		| Variable						-- check type
-		| UserDefinedCollection
+		| "[" Variable ";" Int "]"
+		| Variable
 	
 	Variable
 		= AssignedVariable
-		| FilledMod
-	FilledMod = Mod "(" ListOf<Variable> ")"
+		| Variable "." Field
+		| Collection "." number
+		| MethodCall
+		| Mod Call
+	
+	number = digit+
+	id = ~keyword alnum
+	dot = "."
+	keyword
+		= Bool
+		| Mutable
+		| DefaultValidType
+		| "infix"
+		| "struct"
+		| "enum"
+		| "method"
+		| "mod"
+		| "if"
+		| "then"
+		| "else"
+		| "for"
+		| "in"
+		| "do"
+		| "or"
+		| "and"
+		| "break"
+		| "continue"
+		| "len"
 }
