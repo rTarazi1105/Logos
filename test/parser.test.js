@@ -11,13 +11,13 @@ const syntaxChecks = [
   ["statement", "zero_is_zero_but : xnor[is_zero[0], A];"],
   ["assumption", "assume true : is_zero[0];"],
   ["named assumption", "assume def_zero true : is_zero[0];"],
-  ["operation", "operation xnor : A,B : (A && B) || (not A && not B);"],
+  ["operation", "operation xnor : A,B : (A and B) or (not A and not B);"],
   ["infix", "infix b both;"],
-  ["property", "property injection : f<2> : (f[x,z] && f[y,z]) ifthen (x = y);"],
+  ["property", "property injection : f<2> : (f[x,z] and f[y,z]) ifthen (x = y);"],
   ["calling a property", "assume true : injection[succession];"],
-  ["chained ors in data", "this_statement : a || b || c;"],
-  ["chained ands in data", "operation all : A, b, C : A && b && C;"],
-  ["chained ors in data 2", "operation all : A, b, C : A || b || C;"],
+  ["chained ors in data", "this_statement : a or b or c;"],
+  ["chained ands in data", "operation all : A, b, C : A and b and C;"],
+  ["chained ors in data 2", "operation all : A, b, C : A or b or C;"],
   [
     "struct declaration",
     "struct Coordinate<Numeral> : Summable {x: Numeral, y:int, type:CoordType}",
@@ -66,9 +66,9 @@ const syntaxChecks = [
   ],
   [
     "chained ors",
-    'mod m(a: bool, b: bool, c: bool) { if a and b and c then print("ok"); }',
+    'mod m(a: bool, b: bool, c: bool) { if a | b | c then print("ok"); }',
   ],
-  ["chained ands", 'mod m() { if a and b and c then print("ko"); }'],
+  ["chained ands", 'mod m() { if a & b & c then print("ko"); }'],
   ["string literal", 'mod m() { s = "Hello \\n world"; }'],
 ];
 // LINE 64

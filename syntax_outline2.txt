@@ -1,0 +1,47 @@
+Syntax outline 2
+
+Basic types:
+- bool
+- int
+- statement
+	- can be string
+- value
+	- definition: statement
+- relation([value; n]) -> statement
+	- inputs: [value; n]
+	- e.g. "function" and "variable"
+- operation([statement; n]) -> statement
+- property<Type>([Type; n]) -> statement
+	- type can be class or struct
+
+Arrays: [Type; n]
+Have len
+
+Structs and enums: custom types
+An object can only have one type, but can be multiple classes
+
+match
+for
+if
+return
+yield
+
+{} defines scope
+
+
+
+
+Header is full of constants
+mod { } allows mutation
+
+
+
+
+Return specificities
+return.0 sets the output of the present {} (but does not break it)
+return.1 goes above etc
+return goes to the nearest mod
+return.. goes to the top
+
+
+ADD COMMENTS LATER

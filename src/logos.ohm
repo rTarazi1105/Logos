@@ -14,30 +14,25 @@ Logos {
 		
 	Statement
 		= Bool
-		| Negation
 		| Equality
 		| FilledInfix
 		| FilledRelation
 		| FilledOperation
 		| FilledProperty
+		| Negation
 		| DeclaredStatement
 		| ParenStatement
 	ParenStatement = "(" Statement ")"
 	Negation = "not" Statement
 	FilledRelation = Relation "[" ListOf<Value, ","> "]"
 	FilledOperation = Operation "[" ListOf<Statement, ","> "]"
-	FilledInfix = Statement1 Infix Statement2				// only works on binary operations
+	FilledInfix = Statement Infix Statement				// only works on binary operations
 	FilledProperty = Property "[" ListOf<Relation, ","> "]"
-	Equality = Value1 "=" Value2
-		
-	Statement1 = Statement
-	Statement2 = Statement
-	Value1 = Value
-	Value2 = Value
+	Equality = Value "=" Value
 	
 	Infix
-		= "&&"							// and
-		| "||"							// or
+		= "and"							// and
+		| "or"							// or
 		| "=="							// equals for statements
 		| UserDefinedInfix
 	
@@ -72,13 +67,13 @@ Logos {
 	// OptModParams = ListOf<ModParam, ",">
 	
 	MethodDecl = "mod" (Struct | Class) "." id2 MethodHead ModBody
-	MethodHead = TypeParam? "(" ListOf<ModParamWithSelf, ",">? ")" ReturnType?
+	MethodHead = TypeParam? "(" ListOf<ModParamWithSelf, ","> ")" ReturnType?
 	ModParamWithSelf = ModParam | SelfParam
 	
 	ReturnType = "->" MutableValidTypeOrNone
 	MutableValidTypeOrNone = MutableValidType | None
 	MutableValidType = Mutable? ValidType
-	None = "none"
+	None = "None"
 	
 	ClassDecl = "class" id2 TypeParam? SuperClass? ClassBody
 	SuperClass = ":" ListOf<ClassInclError, ",">
@@ -98,16 +93,17 @@ Logos {
 	
 	Param = (id2 ":")? ValidType				// if no id: let it be 0,1 etc
 	SelfParam = Mutable? "self"
-	ModParam = Mutable? Param
+	ModParam = id2 ":" Mutable? ValidType
 	Mutable = "mut"
 	
 	ValidType
-		= DefaultValidType
+		= "Self"
+		| DefaultValidType
 		| NumberedRelation
+		| CollectionType
 		| ClassMaybeWithTypeParam
 		| Struct
 		| Enum
-		| CollectionType
 	ClassMaybeWithTypeParam = Class FilledTypeParam?
 	NumberedRelation = "relation" Numbering?
 	DefaultValidType
@@ -119,12 +115,10 @@ Logos {
 		| "int"
 		| "Error"
 	CollectionType
-		= FullArrayType
-		| CopiedArrayType
-		| ListType
-	FullArrayType = "[" ListOf<ValidType, ","> "]"
-	CopiedArrayType = "[" ValidType ";" number "]"
-	ListType = "[" ValidType "]"
+		= TupleType
+		| ArrayType
+	TupleType = "[" ListOf<ValidType, ","> "]"
+	ArrayType = "[" ValidType ";" number? "]"
 	
 	ModBody = "{" ActionLine* "}"
 	ActionLine = Action ";"
@@ -144,7 +138,8 @@ Logos {
 	Call = "(" ListOf<Readable, ","> ")"
 	
 	Assignment = Variable "=" Readable
-	Readable = Literal | ControlFlow | Array | Variable
+	Readable = Construct | Literal | ControlFlow | Array | Variable
+	Construct = Struct "{" ListOf<Readable, ","> "}"
 	Increment = Variable "++"
 	Decrement = Variable "--"
 	
@@ -159,21 +154,18 @@ Logos {
 		| Or
 		| Not
 		| Bool
-		| LessThan | GreaterThan
-		| EqualTo | Unequal
+		| InEqualities
 		| Variable						// will need to add statement.truth
-	And = EvalBool1 "and" EvalBool2
-	Or = EvalBool1 "or" EvalBool2
+	And = EvalBool1 "&" EvalBool2
+	Or = EvalBool1 "|" EvalBool2
 	Not = "!" EvalBool
 	EvalBool1 = EvalBool
 	EvalBool2 = EvalBool
 		
-	LessThan = Comparable "<" Comparable
-	GreaterThan = Comparable ">" Comparable
-	EqualTo = Equatable "==" Equatable
-	Unequal = Equatable "!=" Equatable
+	InEqualities = Readable InEqual Readable
+	InEqual = "<" | ">" | "==" | "!="
 	
-	ControlFlow = IfFlow | MatchFlow | WhileFlow | ForFlow
+	ControlFlow = IfFlow | MatchFlow | ForFlow | WhileFlow
 	IfFlow = "if" EvalBool "then" Action Else?
 	Else = "else" Action
 	ForFlow = "for" Arg "in" Collection "do" Action
@@ -188,38 +180,30 @@ Logos {
 		| IfEvalBool
 	IfEvalBool = "if" EvalBool
 	
-	Comparable
-		= Int
-		| Variable					// can be a variable that's not int
-	Equatable
-		= Comparable
-		| EvalBool
-		| "none"
-		| Variable
-	
 	Array						// range will be built-in. Count(int), Range(int, int).
 		= FullArray
 		| CopiedArray
 	FullArray = "[" ListOf<Readable, ","> "]"
 	CopiedArray = "[" Readable ";" Int "]"
+	Int
+		= number
+		| Variable
 	
 	Variable
 		= MethodCall
 		| VarField
 		| ModCall
 		| AssignedVariable
-	VarField = Variable "." Field				// unnamed field, or list index
+	VarField = Variable "." Field				// field, list index, enum case
 	
 	Literal
 		= Bool
-		| Int
+		| number
+		| "none"
 		| String
 	String = "\"" char* "\""
 	char = ~"\"" any
 	Bool = "true" | "false"
-	Int
-		= number
-		| Variable
 	
 	number = digit+
 	id1 = ~keyword idchar+					// for data in the header
@@ -255,19 +239,18 @@ Logos {
 		| "not "
 		| "break "
 		| "continue "
-		| "len "
+	//	| "len "
 		| "class "
 		| "impl "
 		
-	DeclaredStatement = id1
-	Relation = id1
-	Operation = id2
+	DeclaredStatement = Variable | id1
+	Relation = Variable | id1
+	Operation = Variable | id2
 	UserDefinedInfix = id2
-	Property = id1
-	Value = id1
+	Property = Variable | id1
+	Value = Variable | id1
 	Struct = id2
 	Class = id2
-	TypeParamArg = id2
 	Method = id2
 	Mod = id2
 	Enum = id2
