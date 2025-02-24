@@ -1,6 +1,6 @@
 operation ifthen : P,Q : not P or Q; 
 
-struct Contradiction {}
+struct Contradiction {} // comment
 
 mod Add(array: mut [bool]) -> bool {
 	i = 0;

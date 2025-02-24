@@ -8,8 +8,9 @@ Logos {
 		| MethodDecl
 		| ModDecl
 		| ClassImpl
-	// Comment = "//" notNewLine*
-	// notNewLine = ~("\n" | "\r") any
+	comment = "//" notNewLine*
+	notNewLine = ~("\n" | "\r") any
+	space += comment
 		
 		
 	Statement
@@ -49,10 +50,10 @@ Logos {
 	ValueDecl = "value" id1 (":" Relation)?
 	RelationDecl = id1 ":" ListOf<ArgValue, ","> ":" Statement
 	ArgValue = id1
-	OperationDecl = "operation" id2 ":" ListOf<ArgStatement, ","> ":" Statement
+	OperationDecl = OperationWord id2 ":" ListOf<ArgStatement, ","> ":" Statement
 	ArgStatement = id1
 	InfixDecl = "infix" id2 Operation
-	PropertyDecl = "property" id1 ":" ListOf<ArgRelation, ","> ":" Statement
+	PropertyDecl = PropertyWord id1 ":" ListOf<ArgRelation, ","> ":" Statement
 	ArgRelation = id1 Numbering
 	StatementDecl = id1 ":" Statement
 	Assume = "assume" id1? Bool ":" Statement
@@ -109,11 +110,13 @@ Logos {
 	DefaultValidType
 		= "value"
 		| "statement"
-		| "operation"
-		| "property"
+		| OperationWord
+		| PropertyWord
 		| "bool"
 		| "int"
 		| "Error"
+	OperationWord = "op " | "operation "
+	PropertyWord = "prop " | "property "
 	CollectionType
 		= TupleType
 		| ArrayType
@@ -217,8 +220,8 @@ Logos {
 		| "none "
 		| "value "
 		| "statement "
-		| "operation "
-		| "property "
+		| "operation " | "op "
+		| "property " | "prop "
 		| "bool "
 		| "int "
 		| "Error "
