@@ -71,10 +71,7 @@ Logos {
 	MethodHead = TypeParam? "(" ListOf<ModParamWithSelf, ","> ")" ReturnType?
 	ModParamWithSelf = ModParam | SelfParam
 	
-	ReturnType = "->" MutableValidTypeOrNone
-	MutableValidTypeOrNone = MutableValidType | None
-	MutableValidType = Mutable? ValidType
-	None = "None"
+	ReturnType = "->" Mutable? ValidType
 	
 	ClassDecl = "class" id2 TypeParam? SuperClass? ClassBody
 	SuperClass = ":" ListOf<ClassInclError, ",">
@@ -99,6 +96,7 @@ Logos {
 	
 	ValidType
 		= "Self"
+		| "None"
 		| DefaultValidType
 		| NumberedRelation
 		| CollectionType
@@ -179,7 +177,6 @@ Logos {
 	MatchLine = MatchStart "=>" Action
 	MatchStart
 		= ValidType
-		| "none"
 		| IfEvalBool
 	IfEvalBool = "if" EvalBool
 	
@@ -214,37 +211,38 @@ Logos {
 	idchar = alnum | "_"
 	idletter = letter | "_"
 	dot = "."
-	keyword
-		= "true " | "false "
-		| "mut "
-		| "none "
-		| "value "
-		| "statement "
-		| "operation " | "op "
-		| "property " | "prop "
-		| "bool "
-		| "int "
-		| "Error "
-		| "relation "
-		| "infix "
-		| "struct "
-		| "enum "
-		| "method "
-		| "mod "
-		| "if "
-		| "then "
-		| "else "
-		| "for "
-		| "in "
-		| "do "
-		| "or "
-		| "and "
-		| "not "
-		| "break "
-		| "continue "
-	//	| "len "
-		| "class "
-		| "impl "
+	keyword = key " "
+	key
+		= "true" | "false"
+		| "mut"
+		| "none" | "None"
+		| "value"
+		| "statement"
+		| "operation" | "op"
+		| "property" | "prop"
+		| "bool"
+		| "int"
+		| "Error"
+		| "relation"
+		| "infix"
+		| "struct"
+		| "enum"
+		| "method"
+		| "mod"
+		| "if"
+		| "then"
+		| "else"
+		| "for"
+		| "in"
+		| "do"
+		| "or"
+		| "and"
+		| "not"
+		| "break"
+		| "continue"
+	//	| "len"
+		| "class"
+		| "impl"
 		
 	DeclaredStatement = Variable | id1
 	Relation = Variable | id1

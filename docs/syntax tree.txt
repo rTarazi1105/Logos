@@ -1,0 +1,34 @@
+Program
+	Section+
+		DataDecl
+			ValueDecl
+			RelationDecl
+			OperationDecl
+			InfixDecl
+			PropertyDecl
+			StatementDecl
+			Assume
+		StructDecl
+		EnumDecl
+		ClassDecl
+		MethodDecl
+		ModDecl
+		ClassImpl
+		
+		ValidType
+			"Self"
+			DefaultValidType
+				"value"
+				"statement"
+				Operation
+				Property
+				"bool"
+				"int"
+				"Error"
+				"relation" <#>?
+			CollectionType
+			TupleType
+			ArrayType
+			Class <TypeParam>?
+			Struct
+			Enum
