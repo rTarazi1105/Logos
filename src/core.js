@@ -8,10 +8,6 @@ export const intType = { kind: "IntType" }
 export const nullType = { kind: "NullType" }
 export const anyType = { kind: "AnyType" }
 
-export function optionalType(baseType) {
-  return { kind: "OptionalType", baseType }
-}
-
 export function assignment(variable, assignable) {
   return { kind: "Assignment", variable, assignable }
 }
@@ -20,37 +16,38 @@ export function variable(name, mutable, type) {
   return { kind: "Variable", name, mutable, type }
 }
 
-export function typeDeclaration(type) {	// struct, enum or class
-  return { kind: "TypeDeclaration", type }
+export function typeParam(name) {
+  return { kind: "TypeParam", name }
 }
 
-export function structType(name, typeParameter, superClass, fields) {
-  return { kind: "StructType", name, typeParameter, superClass, fields }
+export function struct(name, fields) {	// auto-impl superclasses
+  return { kind: "Struct", name, fields }
 }
 
-export function enumType(name, typeParameter, fields) {
-  return { kind: "EnumType", name, typeParameter, fields }
+export function enumeration(name, cases) {
+  return { kind: "Enum", name, cases }
 }
 
-export function moduleType(paramTypes, returnType) {
-  return { kind: "ModType", paramTypes, returnType }
-}
-
-export function module(name, params, returnType, body) {	// returnType
+export function module(name, params, returnType, body) {
   return { kind: "Module", name, params, returnType, body }
 }
 
-export function method(name, structOrClass, params, returnType, body) {	// returnType
+export function method(name, structOrClass, params, returnType, body) {
   return { kind: "Method", name, structOrClass, params, returnType, body }
 }
 
-export function classType(name, typeParameter, superClass, fields, modules) {
-  return { kind: "ClassType", name, typeParameter, superClass, fields, modules }
+export function classType(name, typeParameter, fields, modules) {	// auto-impl "
+  return { kind: "ClassType", name, typeParameter, fields, modules }
 }
 
-export function classImpl(type, superClass, fields, modules) {
-  return { kind: "ClassImplType", type, superClass, fields, modules }
+export function classImpl(type, superClass, fieldsMap, modules) {
+  return { kind: "ClassImplType", type, superClass, fieldsMap, modules }
 }
+
+export function fieldMapping(field1, field2) {
+  return { kind: "FieldMapping", field1, field2 }
+}
+
 
 // DATA
 
@@ -78,13 +75,13 @@ export function statement(name, statement) {
   return { kind: "Statement", name, statement }
 }
 
-export function assumption(name, boolean, statement) {
-  return { kind: "Assumption", name, boolean, statement }
+export function assumption(name, bool, statement) {
+  return { kind: "Assumption", name, bool, statement }
 }
 
 	// Statements
-export function equalityData(value, value) {
-  return { kind: "EqualityData", value, value }
+export function equalityData(value1, value2) {
+  return { kind: "EqualityData", value1, value2 }
 }
 export function negationData(value) {
   return { kind: "NegationData", value }
@@ -133,14 +130,17 @@ export function relationArg(name, number) {
 
 // Actions
 
-// assignment() above
-
-export function crementVar(variable, boolean) {
-  return { kind: "Crement", variable, boolean }
+export function action(body, returnType) {
+  return { kind: "Action", body, returnType }
 }
 
-export function constructor(struct, assignables) {
-  return { kind: "Struct", struct, assignables, type: struct.type) }
+// assignment() above
+
+export function incrementVar(variable) {
+  return { kind: "Increment", variable }
+}
+export function decrementVar(variable) {
+  return { kind: "Decrement", variable }
 }
 
 export function returnLine(degree, expression) {
@@ -156,101 +156,81 @@ export const breakLine() = { kind: "Break" }
 export const continueLine() = { kind: "Continue"}
 
 // Variable constructors
+export function constructor(struct, assignables) {
+  return { kind: "Struct", struct, assignables, type: struct.type) }
+}
+
 export function methodCall(variable, method, assignable) {
-  return { kind: "MethodCall", variable, method, assignable, type: method.type.returnType}
+  return { kind: "MethodCall", variable, method, assignable, type: method.returnType}
 }
 
 export function modCall(mod, assignable) {
-  return { kind: "ModCall", mod, assignable}
+  return { kind: "ModCall", mod, assignable, type: mod.returnType}
 }
 
-export function inEqualityType(variable, variable, comparison) {
-  return { kind: "VarInEquality", variable, variable, comparison }
+export function inEqualityType(variable1, variable2, comparison) {
+  return { kind: "VarInEquality", variable1, variable2, comparison, type: boolType }
 }
 
-export function notVariable(evalBool) {
-  return { kind: "NotVariable", evalBool }
+export function notVariable(bool) {
+  return { kind: "NotVariable", bool, type: boolType }
 }
 
-export function andVariable(evalBool, evalBool) {
-  return { kind: "AndVariable", evalBool, evalBool }
+export function andVariable(bool1, bool2) {
+  return { kind: "AndVariable", bool1, bool2, type: boolType }
 }
 
-export function orVariable(evalBool, evalBool) {
-  return { kind: "OrVariable", evalBool, evalBool }
+export function orVariable(bool1, bool2) {
+  return { kind: "OrVariable", bool1, bool2, type: boolType }
 }
 	// x.i
 export function varField(variable, field) {	// includes list indices
-  return { kind: "VarField", variable, field }
+  return { kind: "VarField", variable, field, type: field.type }
 }
 export function enumCase(enumName, caseOfEnum) {
-  return { kind: "EnumCase", enumName, caseOfEnum }
+  return { kind: "EnumCase", enumName, caseOfEnum, type: field.type }
 }
 
-	// Arrays
-export function tuple(assignables) {
+	// Collections
+export function tuple(assignables) {	// list
   return { kind: "Tuple", assignables }
 }
 export function array(assignable, length) {
-  return { kind: "Array", assignable, length, type: arrayType(assignables[0].type) }
-}
-export function emptyArray(type) { 
-  return { kind: "EmptyArray", type }
+  return { kind: "Array", assignable, length, type: arrayType(assignable.type) }
 }
 
 export function arrayType(baseType) {
   return { kind: "ArrayType", baseType }
 }
 export function tupleType(baseTypes) {
-  return { kind: "ArrayType", baseTypes }
+  return { kind: "TupleType", baseTypes }
 }
 
 // Control Flow
-export function ifFlow(evalBool, action, elseAction) {
-  return { kind: "IfFlow", evalBool, action, elseAction }
+export function ifFlow(bool, action, elseAction) {
+  return { kind: "IfFlow", bool, action, elseAction, type: action.returnType }
 }
 
-export function whileFlow(evalBool, action) {
-  return { kind: "WhileFlow", evalBool, action }
+export function whileFlow(bool, action) {
+  return { kind: "WhileFlow", bool, action, type: action.returnType }
 }
 
 export function forFlow(argName, collection, action) {
-  return { kind: "ForFlow", argName, collection, action }
+  return { kind: "ForFlow", argName, collection, action, type: action.returnType }
 }
 
 export function matchFlow(variable, matchLines) {
-  return { kind: "MatchFlow", variable, matchLines }
+  return { kind: "MatchFlow", variable, matchLines, type: matchLines[0].type }
+}
+export function matchLine(condition, action) { // condition can be type or "if"
+  return { kind: "MatchLine", condition, action, type: action.returnType
+}
+export function typeCondition(type) {
+  return { kind: "MatchTypeCondition", type }
 }
 
-export function matchLineWithIf(evalBool, action) {
-  return { kind: "MatchLineIf", evalBool, action }
-}
-export function matchLineWithType(type, action) {
-  return { kind: "MatchLineType", type, action }
-}
 
 
-
-
-
-
-
-
-
-
-
-
-export function memberExpression(object, op, field) {
-  return { kind: "MemberExpression", object, op, field, type: field.type }
-}
-
-export function functionCall(callee, args) {
-  return { kind: "FunctionCall", callee, args, type: callee.type.returnType }
-}
-
-export function constructorCall(callee, args) {
-  return { kind: "ConstructorCall", callee, args, type: callee }
-}					// renamed...
 
 const anyToNullType = moduleType([anyType], nullType)
 

@@ -83,7 +83,14 @@ Logos {
 	ClassField = Param ","
 	ClassMod = "mod" id2 MethodHead ModBodyOrColon
 	ModBodyOrColon = ModBody | ";"
-	ClassImpl = ValidType "impl" Class ClassBody
+	
+	ClassImpl = ValidType "impl" Class ClassImplBody
+	ClassImplBody = "{" ClassImplLine* "}"
+	ClassImplLine
+		= ClassImplField
+		| ClassMod
+	ClassImplField = id2 ParamMap? ","
+	ParamMap = ":" id2
 	
 	TypeParam = ("<" ListOf<IdAndSuperClass, ","> ">")		// no superclass = Any
 	IdAndSuperClass = id2 SuperClass?
