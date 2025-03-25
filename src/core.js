@@ -193,7 +193,7 @@ export function enumCase(enumName, caseOfEnum) {
 
 	// Collections
 export function tuple(assignables) {	// list
-  return { kind: "Tuple", assignables }
+  return { kind: "Tuple", assignables, length: assignables.length }
 }
 export function array(assignable, length) {
   return { kind: "Array", assignable, length, type: arrayType(assignable.type) }
