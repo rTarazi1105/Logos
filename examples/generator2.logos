@@ -1,0 +1,25 @@
+enum Option<T> {
+	Full: T,
+	Empty: None,
+}
+
+struct Range {
+	current: int,
+	len: int
+}
+
+mod int.add(addend: int) -> Self {
+	
+}
+
+mod Range.new(i: int) -> Self {
+	
+}
+
+Range impl Collection {
+	mod next(self) -> Option<int> {
+		if self.current.add(1) < len then 
+		output = self.current;
+		self.curre
+	}
+}

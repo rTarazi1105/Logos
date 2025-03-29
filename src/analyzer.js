@@ -1,6 +1,6 @@
 class Context {
-  constructor({ parent = null, locals = new Map(), classes = new Map(), inLoop = false, module: f = null }) {
-    Object.assign(this, { parent, locals, inLoop, module: f })
+  constructor({ parent = null, locals = new Map(), relations = new Map(), classes = new Map(), inLoop = false, module: f = null }) {
+    Object.assign(this, { parent, locals, relations, classes, inLoop, module: f })
   }
   add(name, entity) {
     this.locals.set(name, entity)
@@ -8,15 +8,34 @@ class Context {
   lookup(name) {
     return this.locals.get(name) || this.parent?.lookup(name)
   }
+  
+  // Relations: Map<name, Set<List[values for which it is true]>
+  lookupRelation(name) {
+    return this.statements.get(name)
+  }
+  addRelation(name, values) {
+    if (!this.statements.has(name)) {
+      this.statements.set(name, new Set())
+    } else {
+      relation_number = this.statements.get(name).values().next().value.length;
+      values_length = values.length;
+      if relation_number != values.length {
+        throw new Error(`Relation ${name} only accepts ${relation_number} values but was given ${values_length}`)
+      }
+    }
+    this.statements.get(name).add(values)
+  }
+  
+  
   // Collection, Equatable, Comparable, Error
   classify(classs, name) {
     if (!this.classes.has(classs)) {
-      this.classes.set(classs, new Set()
+      this.classes.set(classs, new Set())
     }
     this.classes.get(classs).add(name)
   }
-  lookup_class(classs, name) {
-    return this.classes.get(classs).has(name) || this.parent.lookup_class(name)
+  lookupClass(classs, name) {
+    return this.classes.get(classs).has(name) || this.parent.lookupClass(name)
   }
   
   
@@ -24,6 +43,9 @@ class Context {
   static root() {
     return new Context({
       locals: new Map(Object.entries(core.standardLibrary)),
+      relations: new Map([
+        ["Equal", Set()]
+      ]),
       classes: new Map([
         ["Collection", Set()], // Add all arrays and tuples
         ["Equatable", Set([
@@ -74,11 +96,11 @@ export default function analyze(match) {
   }
   
   function mustHaveClass(e, at, className) {
-    must(context.lookup_class(className, e), `Expected type to have class <${className}>`, at)
+    must(context.lookupClass(className, e), `Expected type to have class <${className}>`, at)
   }
   
   function mustNotHaveClass(e, at, className) {
-    must(!context.lookup_class(className, e), `Class <${className}> already declared or not expected`, at)
+    must(!context.lookupClass(className, e), `Class <${className}> already declared or not expected`, at)
   }
 
   function mustBeAStruct(e, at) {
@@ -131,33 +153,41 @@ export default function analyze(match) {
 
   function equivalent(t1, t2) {
     return (
-      t2? = core.anyType ||
+      t2 === core.anyType ||
       t1 === t2 || (
-      t1?.kind == t2?.kind && (
-          (t1?.kind === "ArrayType" &&
+      
+        t1?.kind == t2?.kind && (
+          (
+            t1?.kind === "ArrayType" &&
             t1?.len === t2?.len &&
-            equivalent(t1.baseType, t2.baseType)) ||
-          (t1?.kind === "ListType" &&
-            equivalent(t1.baseType, t2.baseType)) ||
-          (t1?.kind === "ActionType" &&
-            equivalent(t1.returnType, t2.returnType)) ||
-          (t1?.number == t2?.number && (
-            t1?.kind === "RelationType" ||
-            t1?.kind === "OperationType" ||
-            (t1?.kind === "PropertyType"
-              && t1?.argNumbers.every((n,i) => t2?.argNumbers[i] === n)
+            equivalent(t1.baseType, t2.baseType)
+          ) ||
+          (
+            t1?.kind === "ListType" &&
+            equivalent(t1.baseType, t2.baseType)
+          ) ||
+          (
+            t1?.kind === "ActionType" &&
+            equivalent(t1.returnType, t2.returnType)
+          ) ||
+          (
+            t1?.number == t2?.number &&
+            (
+              t1?.kind === "RelationType" ||
+              t1?.kind === "OperationType" ||
+              (
+                t1?.kind === "PropertyType" &&
+                t1?.argNumbers.every((n,i) => t2?.argNumbers[i] === n)
+              )
             )
-          ))
-      )
+          )
+        )
       )
     )
   }
   
-  function checkFields(struct, classs) {
-    return classs.fields.every(
-      (field, _i) =>
-        struct.fields.find(field)?.type === field.type
-    )
+  function mustHaveNumber(e, n, at) {
+    must(e?.number === n, "Incorrect number", at)
   }
 
   function isMutable(e) {
@@ -196,6 +226,13 @@ export default function analyze(match) {
   function mustHaveDistinctFields(type, at) {
     const fieldNames = new Set(type.fields.map(f => f.name))
     must(fieldNames.size === type.fields.length, "Fields must be distinct", at)
+  }
+  
+  function checkFields(struct, classs) {
+    return classs.fields.every(
+      (field, _i) =>
+        struct.fields.find(field)?.type === field.type
+    )
   }
 
   function mustHaveMember(structType, field, at) {
@@ -240,6 +277,113 @@ export default function analyze(match) {
   
   
   
+  
+  
+  
+  // BUILDER
+  
+  
+  const builder = match.matcher.grammar.createSemantics().addOperation("rep", {
+    Program(sections) {
+        return core.program(sections.children.map(s => s.rep()));
+    },
+
+    Section_dataDeclLine(dataDecl, _semicolon) {
+        return dataDecl.rep();
+    },
+
+    Section_structDecl(structDecl) {
+        return structDecl.rep();
+    },
+
+    Section_enumDecl(enumDecl) {
+        return enumDecl.rep();
+    },
+
+    Section_classDecl(classDecl) {
+        return classDecl.rep();
+    },
+
+    Section_methodDecl(methodDecl) {
+        return methodDecl.rep();
+    },
+
+    Section_modDecl(modDecl) {
+        return modDecl.rep();
+    },
+
+    Section_classImpl(classImpl) {
+        return classImpl.rep();
+    },
+
+    Statement_bool(value) {
+        return core.booleanLiteral(value.sourceString === "true");
+    },
+
+    Statement_equality(left, _op, right) {
+        return core.equality(left.rep(), right.rep());
+    },
+
+    Statement_filledInfix(left, op, right) {
+        return core.infixExpression(left.rep(), op.sourceString, right.rep());
+    },
+
+    Statement_filledRelation(left, op, right) {
+        return core.relation(left.rep(), op.sourceString, right.rep());
+    }
+    
+    // Data
+    DataDecl_valueDecl(_value, id, relation) {
+        mustNotAlreadyBeDeclared(id.sourceString, { at: id })
+        
+        existingRelation = context.lookup(relation);
+        if (existingRelation == null) {
+            // Assume it will be defined later
+            newRelation = core.relation(relation, ["_"], null)
+            context.addRelation(relation, [id])
+            context.add(relation, newRelation)
+            
+            context.add(id, core.value(id, newRelation))
+        } else {
+            mustHaveNumber(existingRelation.kind, 1, { at: id })
+            
+            context.add(id, core.value(id, existingRelation))
+        }
+    }
+    
+    DataDecl_relationDecl(id, _colon1, args, _colon2, statement) {
+        mustNotAlreadyBeDeclared(id.sourceString, { at: id })
+        
+        context.add(id, core.relation(id, args, statement))
+    }
+    
+    DataDecl_operationDecl(_operation, id, _colon1, args, _colon2, statement) {
+        mustNotAlreadyBeDeclared(id.sourceString, { at: id })
+        
+        context.add(id, core.operation(id, args, statement))
+    }
+    
+    ArgRelation(id, number) {
+        mustNotAlreadyBeDeclared(id.sourceString, { at: id })
+        
+        context.add(id, core.relationArg(id, number))
+    }
+    
+    DataDecl_propertyDecl(_property, id, _colon1, args, _colon2, statement) {
+        mustNotAlreadyBeDeclared(id.sourceString, { at: id })
+        
+        context = context.newChildContext({ inLoop: false, function: fun })
+        fun.params = parameters.rep()
+        
+        context.add(id, core.operation(id, args, statement))
+    }
+  });
+
+
+
+
+
+// TOAL CODE 
   const builder = match.matcher.grammar.createSemantics().addOperation("rep", {
     Program(statements) {
       return core.program(statements.children.map(s => s.rep()))
@@ -253,15 +397,14 @@ export default function analyze(match) {
       context.add(id.sourceString, variable)
       return core.variableDeclaration(variable, initializer)
     },
+    
+    
 
     TypeDecl(_struct, id, _left, fields, _right) {
       mustNotAlreadyBeDeclared(id.sourceString, { at: id })
       // To allow recursion, enter into context without any fields yet
       const type = core.structType(id.sourceString, [])
       context.add(id.sourceString, type)
-      // Now add the types as you parse and analyze. Since we already added
-      // the struct type itself into the context, we can use it in fields.
-      type.fields = fields.children.map(field => field.rep())
       mustHaveDistinctFields(type, { at: id })
       mustNotBeSelfContaining(type, { at: id })
       return core.typeDeclaration(type)
@@ -271,7 +414,7 @@ export default function analyze(match) {
       return core.field(id.sourceString, type.rep())
     },
 
-    FunDecl(_fun, id, parameters, _colons, type, block) {
+    ModDecl(_fun, id, parameters, _colons, type, block) {
       mustNotAlreadyBeDeclared(id.sourceString, { at: id })
       // Add immediately so that we can have recursion
       const fun = core.fun(id.sourceString)

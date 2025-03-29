@@ -29,6 +29,10 @@ export function enumeration(name, cases) {
   return { kind: "Enum", name, cases }
 }
 
+export function moduleType(paramTypes, returnType) {
+  return { kind: "ModuleType", paramTypes, returnType }
+}
+
 export function module(name, params, returnType, body) {
   return { kind: "Module", name, params, returnType, body }
 }
@@ -59,6 +63,11 @@ export function parameter(name, mutable, type) {
 
 
 // DATA
+// True statements - really, relations between values - must be local
+export function relationTruths(relation) {
+  return { kind: "RelationTruths", relation, values: new Set() }
+}
+
 
 export function value(name, relation) {
   return { kind: "Value", name, relation }
@@ -78,6 +87,10 @@ export function infix(name, operation) {	// Default: and, or, ==
 
 export function property(name, relationArgs, statement) {	// relationArgs are numbered
   return { kind: propertyType(args.length), name, relationArgs, statement }
+}
+
+export function relationArg(name, number) {
+  return { kind: "RelationArg", name, number }
 }
 
 export function statement(name, statement) {
@@ -161,16 +174,16 @@ export function returnLine(degree, expression) {
 }
 
 export function yieldLine(degree, expression) {
-  return { kind: "Yield", degree, expression) }
+  return { kind: "Yield", degree, expression }
 }
 
-export const breakLine() = { kind: "Break" }
+export const breakLine = { kind: "Break" }
 
-export const continueLine() = { kind: "Continue"}
+export const continueLine = { kind: "Continue"}
 
 // Variable constructors
 export function constructor(struct, assignables) {
-  return { kind: "Struct", struct, assignables, type: struct.type) }
+  return { kind: "Struct", struct, assignables, type: struct.type }
 }
 
 export function methodCall(variable, method, assignable) {
@@ -253,7 +266,7 @@ export const standardLibrary = Object.freeze({
   string: stringType,
   void: voidType,
   any: anyType,
-  print: intrinsicFunction("print", anyToVoidType),
+  //print: intrinsicFunction("print", anyToVoidType),
 })
 
 String.prototype.type = stringType
