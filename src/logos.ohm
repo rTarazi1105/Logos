@@ -92,9 +92,9 @@ Logos {
 	ClassImplField = id2 ParamMap? ","
 	ParamMap = ":" id2
 	
-	TypeParam = ("<" ListOf<IdAndSuperClass, ","> ">")		// no superclass = Any
+	TypeParam = "<" ListOf<IdAndSuperClass, ","> ">"		// no superclass = Any
 	IdAndSuperClass = id2 SuperClass?
-	FilledTypeParam = ("<" ListOf<ValidType, ","> ">")
+	FilledTypeParam = "<" ListOf<ValidType, ","> ">"
 	
 	Param = (id2 ":")? ValidType				// if no id: let it be 0,1 etc
 	SelfParam = Mutable? "self"
@@ -106,11 +106,11 @@ Logos {
 		| "None"
 		| DefaultValidType
 		| NumberedRelation
-		| CollectionType
+		| ArrayType
 		| ClassMaybeWithTypeParam
 		| Struct
 		| Enum
-	ClassMaybeWithTypeParam = Class FilledTypeParam?
+	ClassMaybeWithTypeParam = DeclaredClass FilledTypeParam?
 	NumberedRelation = "relation" Numbering?
 	DefaultValidType
 		= "value"
@@ -119,14 +119,10 @@ Logos {
 		| PropertyWord
 		| "bool"
 		| "int"
-		| "Error"
 	OperationWord = "op " | "operation "
 	PropertyWord = "prop " | "property "
-	CollectionType
-		= TupleType
-		| ArrayType
-	TupleType = "[" ListOf<ValidType, ","> "]"
 	ArrayType = "[" ValidType ";" number? "]"
+	-- Removed tuples because we have structs
 	
 	ModBody = "{" ActionLine* "}"
 	ActionLine = Action ";"
@@ -143,15 +139,15 @@ Logos {
 		| ModCall
 	MethodCall = Variable "." Method Call
 	ModCall = Mod Call
-	Call = "(" ListOf<Readable, ","> ")"
+	Call = "(" ListOf<Assignable, ","> ")"
 	
-	Assignment = Variable "=" Readable
-	Readable = Construct | Literal | ControlFlow | Array | Variable
-	Construct = Struct "{" ListOf<Readable, ","> "}"
+	Assignment = Variable "=" Assignable
+	Assignable = Construct | Literal | ControlFlow | Array | Variable
+	Construct = Struct "{" ListOf<Assignable, ","> "}"
 	Increment = Variable "++"
 	Decrement = Variable "--"
 	
-	Return = ReturnOrYield ReturnUp? Readable?
+	Return = ReturnOrYield ReturnUp? Assignable?
 	ReturnOrYield = "return" | "yield"
 	ReturnUp = DotNumber | DotDot
 	DotNumber = "." number
@@ -170,7 +166,7 @@ Logos {
 	EvalBool1 = EvalBool
 	EvalBool2 = EvalBool
 		
-	InEqualities = Readable InEqual Readable
+	InEqualities = Assignable InEqual Assignable
 	InEqual = "<" | ">" | "==" | "!="
 	
 	ControlFlow = IfFlow | MatchFlow | ForFlow | WhileFlow
@@ -190,8 +186,8 @@ Logos {
 	Array						// range will be built-in. Count(int), Range(int, int).
 		= FullArray
 		| CopiedArray
-	FullArray = "[" ListOf<Readable, ","> "]"
-	CopiedArray = "[" Readable ";" Int "]"
+	FullArray = "[" ListOf<Assignable, ","> "]"
+	CopiedArray = "[" Assignable ";" Int "]"
 	Int
 		= number
 		| Variable
@@ -250,7 +246,8 @@ Logos {
 	//	| "len"
 		| "class"
 		| "impl"
-		
+		| String
+	
 	DeclaredStatement = Variable | id1
 	Relation = Variable | id1
 	Operation = Variable | id2
@@ -258,6 +255,7 @@ Logos {
 	Property = Variable | id1
 	Value = Variable | id1
 	Struct = id2
+	DeclaredClass = Class | "Error" | "Comparable" | "Equatable" | "Collection"
 	Class = id2
 	Method = id2
 	Mod = id2

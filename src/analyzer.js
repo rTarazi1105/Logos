@@ -69,36 +69,24 @@ export default function analyze(match) {
     must(e.type === core.booleanType, "Expected a boolean", at)
   }
 
-  function mustBeNull(e, at) {
-    must(e.type === core.nullType, "Expected null", at)
-  }
-
-  function mustBeCollection(e, at) {
-    must(context.lookup_class("Collection",e), "Expected Collection", at)
-  }
-
-  function mustBeEquatable(e, at) {
-    must(context.lookup_class("Equatable",e), "Expected Equatable", at)
-  }
-
-  function mustBeComparable(e, at) {
-    must(context.lookup_class("Comparable",e), "Expected Comparable", at)
-  }
-
-  function mustBeError(e, at) {
-    must(context.lookup_class("Error",e), "Expected Error", at)
+  function mustBeVoid(e, at) {
+    must(e.type === core.voidType, "Expected void", at)
   }
   
-  function mustNotBeError(e, at) {
-    must(!context.lookup_class("Error",e), "Expected not Error", at)
+  function mustHaveClass(e, at, className) {
+    must(context.lookup_class(className, e), `Expected type to have class <${className}>`, at)
+  }
+  
+  function mustNotHaveClass(e, at, className) {
+    must(!context.lookup_class(className, e), `Class <${className}> already declared or not expected`, at)
   }
 
   function mustBeAStruct(e, at) {
-    must(e.type?.kind === "StructType", "Expected a struct", at)
+    must(e.type?.kind === "Struct", "Expected a struct", at)
   }
 
   function mustBeAStructOrClass(e, at) {
-    must(e.type?.kind === "StructType" || e.type?.kind === "ClassType", "Expected a struct or class", at)
+    must(e.type?.kind === "Struct" || e.type?.kind === "Classs", "Expected a struct or class", at)
   }
 
   function mustBothHaveTheSameType(e1, e2, at) {
@@ -114,25 +102,12 @@ export default function analyze(match) {
       at
     )
   }
-  
-  // 2025-3-25: UP TO HERE
-
-  function mustBeAType(e, at) {
-    const isBasicType = /int|float|string|bool|void|any/.test(e)
-    const isCompositeType = /StructType|FunctionType|ArrayType|OptionalType/.test(e?.kind)
-    must(isBasicType || isCompositeType, "Type expected", at)
-  }
-
-  function mustBeAnArrayType(t, at) {
-    must(t?.kind === "ArrayType", "Must be an array type", at)
-  }
 
   function includesAsField(structType, type) {
-    // Whether the struct type has a field of type type, directly or indirectly
+    // Whether the struct type has a field of type "type", directly
     return structType.fields.some(
       field =>
-        field.type === type ||
-        (field.type?.kind === "StructType" && includesAsField(field.type, type))
+        field.type === type
     )
   }
 
@@ -140,23 +115,64 @@ export default function analyze(match) {
     const containsSelf = includesAsField(structType, structType)
     must(!containsSelf, "Struct type must not be self-containing", at)
   }
+  
+  function mustBeMutable(variable, at) {
+    must(variable.mutable === true, at)
+  }
+
+  // ValidType in Ohm
+  function mustBeAType(e, at) {
+    const isPrimitiveType = /int|bool|void|any/.test(e)
+    const isDataType = /Value|Infix|Statement|Assumption/.test(e)
+    const isNumberedDataType = /RelationType|OperationType|PropertyType/.test(e?.kind)
+    const isCompositeType = /Struct|Enum|ArrayType|TupleType|TypeParam/.test(e?.kind)
+    must(isPrimitiveType || isDataType || isNumberedDataType || isCompositeType, "Type expected", at)
+  }
 
   function equivalent(t1, t2) {
     return (
-      t1 === t2 ||
-      (t1?.kind === "OptionalType" &&
-        t2?.kind === "OptionalType" &&
-        equivalent(t1.baseType, t2.baseType)) ||
-      (t1?.kind === "ArrayType" &&
-        t2?.kind === "ArrayType" &&
-        equivalent(t1.baseType, t2.baseType)) ||
-      (t1?.kind === "FunctionType" &&
-        t2?.kind === "FunctionType" &&
-        equivalent(t1.returnType, t2.returnType) &&
-        t1.paramTypes.length === t2.paramTypes.length &&
-        t1.paramTypes.every((t, i) => equivalent(t, t2.paramTypes[i])))
+      t1 === t2 || (
+      t1?.kind == t2?.kind && (
+          (t1?.kind === "ArrayType" &&
+            t1?.len === t2?.len &&
+            equivalent(t1.baseType, t2.baseType)) ||
+          (t1?.kind === "ListType" &&
+            equivalent(t1.baseType, t2.baseType)) ||
+          (t1?.kind === "ActionType" &&
+            equivalent(t1.returnType, t2.returnType)) ||
+          (t1?.number == t2?.number && (
+            t1?.kind === "RelationType" ||
+            t1?.kind === "OperationType" ||
+            (t1?.kind === "PropertyType"
+              && t1?.argNumbers.every((n,i) => t2?.argNumbers[i] === n)
+            )
+          ))
+      )
+      )
     )
   }
+  
+  function checkFields(struct, classs) {
+    return classs.fields.every(
+      (field, _i) =>
+        struct.fields.find(field)?.type === field.type
+    )
+  }
+
+  function isMutable(e) {
+    return (
+      (e?.kind === "Variable" && e?.mutable) ||
+      (e?.kind === "VarField" && isMutable(e?.variable)) ||
+      (e?.kind === "MemberExpression" && isMutable(e?.object))
+    )
+  }
+
+  function mustBeMutable(e, at) {
+    must(isMutable(e), "Cannot assign to immutable variable", at)
+  }
+  
+  // Up to here
+  // reconsider enum cases
 
   function assignable(fromType, toType) {
     return (
@@ -189,18 +205,6 @@ export default function analyze(match) {
     const target = typeDescription(type)
     const message = `Cannot assign a ${source} to a ${target}`
     must(assignable(e.type, type), message, at)
-  }
-
-  function isMutable(e) {
-    return (
-      (e?.kind === "Variable" && e?.mutable) ||
-      (e?.kind === "SubscriptExpression" && isMutable(e?.array)) ||
-      (e?.kind === "MemberExpression" && isMutable(e?.object))
-    )
-  }
-
-  function mustBeMutable(e, at) {
-    must(isMutable(e), "Cannot assign to immutable variable", at)
   }
 
   function mustHaveDistinctFields(type, at) {
