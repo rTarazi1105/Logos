@@ -122,7 +122,6 @@ Logos {
 	OperationWord = "op " | "operation "
 	PropertyWord = "prop " | "property "
 	ArrayType = "[" ValidType ";" number? "]"
-	-- Removed tuples because we have structs
 	
 	ModBody = "{" ActionLine* "}"
 	ActionLine = Action ";"
@@ -246,7 +245,6 @@ Logos {
 	//	| "len"
 		| "class"
 		| "impl"
-		| String
 	
 	DeclaredStatement = Variable | id1
 	Relation = Variable | id1

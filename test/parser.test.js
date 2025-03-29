@@ -35,8 +35,8 @@ const syntaxChecks = [
   ["module with two params", "mod m(x: int, y: bool) {}"],
   ["module with no params + return type", "mod m() {}"],
   ["return function", "mod m(g: property)-> relation<2> {}"],
-  ["array type for param", "mod m(x: [[[bool]]]) {}"],
-  ["array type returned", "mod m() -> [[int]] {}"],
+  ["array type for param", "mod m(x: [[[bool;];];]) {}"],
+  ["array type returned", "mod m() -> [[int;];] {}"],
   [
     "type parameter and optional",
     "mod wrap<T>(item: T) -> Option<T> { return Option.new(T); } ",

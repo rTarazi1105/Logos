@@ -1,6 +1,6 @@
 class Context {
-  constructor({ parent = null, locals = new Map(), classes = new Map(), inLoop = false, function: f = null }) {
-    Object.assign(this, { parent, locals, inLoop, function: f })
+  constructor({ parent = null, locals = new Map(), classes = new Map(), inLoop = false, module: f = null }) {
+    Object.assign(this, { parent, locals, inLoop, module: f })
   }
   add(name, entity) {
     this.locals.set(name, entity)
@@ -131,6 +131,7 @@ export default function analyze(match) {
 
   function equivalent(t1, t2) {
     return (
+      t2? = core.anyType ||
       t1 === t2 || (
       t1?.kind == t2?.kind && (
           (t1?.kind === "ArrayType" &&
@@ -170,34 +171,19 @@ export default function analyze(match) {
   function mustBeMutable(e, at) {
     must(isMutable(e), "Cannot assign to immutable variable", at)
   }
-  
-  // Up to here
-  // reconsider enum cases
 
   function assignable(fromType, toType) {
     return (
       toType == core.anyType ||
-      equivalent(fromType, toType) ||
-      (fromType?.kind === "FunctionType" &&
-        toType?.kind === "FunctionType" &&
-        // covariant in return types
-        assignable(fromType.returnType, toType.returnType) &&
-        fromType.paramTypes.length === toType.paramTypes.length &&
-        // contravariant in parameter types
-        toType.paramTypes.every((t, i) => assignable(t, fromType.paramTypes[i])))
+      equivalent(fromType, toType)
     )
   }
 
   function typeDescription(type) {
     if (typeof type === "string") return type
-    if (type.kind == "StructType") return type.name
-    if (type.kind == "FunctionType") {
-      const paramTypes = type.paramTypes.map(typeDescription).join(", ")
-      const returnType = typeDescription(type.returnType)
-      return `(${paramTypes})->${returnType}`
-    }
+    if (type.kind == "Struct" || type.kind == "Enum") return type.name
     if (type.kind == "ArrayType") return `[${typeDescription(type.baseType)}]`
-    if (type.kind == "OptionalType") return `${typeDescription(type.baseType)}?`
+    if (type.kind == "ListType") return `List[${typeDescription(type.baseType)}]`
   }
 
   function mustBeAssignable(e, { toType: type }, at) {
@@ -221,8 +207,11 @@ export default function analyze(match) {
   }
 
   function mustBeInAFunction(at) {
-    must(context.function, "Return can only appear in a function", at)
+    must(context.module, "Return can only appear in a function", at)
   }
+  
+  // Up to here
+  // reconsider enum cases
 
   function mustBeCallable(e, at) {
     const callable = e?.kind === "StructType" || e.type?.kind === "FunctionType"
@@ -259,7 +248,7 @@ export default function analyze(match) {
     VarDecl(modifier, id, _eq, exp, _semicolon) {
       mustNotAlreadyBeDeclared(id.sourceString, { at: id })
       const initializer = exp.rep()
-      const mutable = modifier.sourceString === "let"
+      const mutable = modifier.sourceString === "mut"
       const variable = core.variable(id.sourceString, mutable, initializer.type)
       context.add(id.sourceString, variable)
       return core.variableDeclaration(variable, initializer)
