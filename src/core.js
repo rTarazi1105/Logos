@@ -18,14 +18,14 @@ export function variable(name, mutable, type) {
 }
 
 export function typeParameter(name) {
-  return { kind: "TypeParameter", name }
+  return { kind: "TypeParameter", name, classes: new Set() }
 }
 
 export function struct(name, fields) {	// auto-impl superclasses
   return { kind: "Struct", name, fields }
 }
 
-export function enumeration(name, cases) {
+export function enumeration(name, cases) { // cases are like fields
   return { kind: "Enum", name, cases }
 }
 
@@ -37,8 +37,12 @@ export function module(name, params, returnType, body) {
   return { kind: "Module", name, params, returnType, body }
 }
 
-export function method(name, structOrClass, params, returnType, body) {
-  return { kind: "Method", name, structOrClass, params, returnType, body }
+export function method(name, struct, params, returnType, body) {
+  return { kind: "Method", name, struct, params, returnType, body }
+}
+
+export function classFilledWithParam(classs, filledTypeParams) {
+  return { kind: "FilledClass", classs, filledTypeParams) }
 }
 
 export function classs(name, typeParams, fields, modules) {	// auto-impl "
@@ -48,7 +52,7 @@ export function classs(name, typeParams, fields, modules) {	// auto-impl "
 export function classImpl(type, superClass, fieldsMap, modules) {
   return { kind: "ClassImpl", type, superClass, fieldsMap, modules }
 }
-
+	// Elements
 
 export function fieldMapping(field1, field2) {
   return { kind: "FieldMapping", field1, field2 }
@@ -62,12 +66,21 @@ export function parameter(name, mutable, type) {
   return { kind: "Parameter", name, mutable, type }
 }
 
-// This will be key and value respectively for us to get classes for each type from locals
-export function typeKey(type) {
-  return { kind: "TypeKey", type }
+	// Declarations
+export function structDeclaration(struct) {
+  return { kind: "StructDeclaration", struct }
 }
-export function classImplList(type) {
-  return { kind: "ClassImplList", type, new Set() }
+export function enumDeclaration(enumeration) {
+  return { kind: "EnumDeclaration", enumeration }
+}
+export function moduleDeclaration(module) {
+  return { kind: "ModuleDeclaration", module }
+}
+export function methodDeclaration(method) {
+  return { kind: "MethodDeclaration", method }
+}
+export function classDeclaration(classs) {
+  return { kind: "ClassDeclaration", classs }
 }
 
 
@@ -210,8 +223,8 @@ export function orVariable(bool1, bool2) {
 export function varField(variable, field) {	// includes list indices
   return { kind: "VarField", variable, field, type: field.type }
 }
-export function enumCase(enumName, caseOfEnum) {
-  return { kind: "EnumCase", enumName, caseOfEnum, type: field.type }
+export function enumCase(enumeration, field) {
+  return { kind: "EnumCase", enumeration, field, type: field.type }
 }
 
 	// Collections
@@ -271,6 +284,78 @@ const equalOp = operation("equal1234567890", ["A","B"], equalStatement("A","B"))
 
 
 
+    const errorClass = classs(
+      "Error",
+      [],
+      [
+        field("crash", boolType), 
+        field("print", boolType)
+      ],
+      [module(
+        "print", 
+        parameter("message", false, stringType),
+        voidType,
+        null
+      )]
+    );
+    
+    const collectionBaseType = typeParameter("T");
+    const collectionClass = classs(
+      "Collection",
+      [collectionBaseType],
+      [
+        field("crash", boolType), 
+        field("print", boolType)
+      ],
+      [module(
+        "get", 
+        [parameter("self", false, null)],
+        collectionBaseType,
+        null
+      ), module(
+        "next",
+        [parameter("self", true, null)],
+        voidType,
+        null
+      )]
+    );
+    // How deep does this go? Be careful maybe
+    collectionClass.modules[0].params[0].type = collectionClass;
+    collectionClass.modules[1].params[0].type = collectionClass;
+    
+    const orderingEnum = enumeration("Ordering", [
+      field("LessThan", voidType), 
+      field("EqualTo", voidType), 
+      field("GreaterThan", voidType)
+    ]);
+    const comparableClass = classs(
+      "Comparable",
+      [],
+      [],
+      [module(
+        "cmp",
+        [parameter("self", false, null), parameter("other", false, null)],
+        orderingEnum,
+        null
+      )]
+    );
+    comparableClass.modules[0].params[0].type = comparableClass;
+    comparableClass.modules[0].params[1].type = comparableClass;
+    
+    const equatableClass = classs(
+      "Equatable",
+      [],
+      [],
+      [module(
+        "eq",
+        [parameter("self", false, null), parameter("other", false, null)],
+        boolType,
+        null
+      )]
+    );
+    equatableClass.modules[0].params[0].type = equatableClass;
+    equatableClass.modules[0].params[1].type = equatableClass;
+
 
 const anyToVoidType = moduleType([anyType], voidType)
 
@@ -284,6 +369,11 @@ export const standardLibrary = Object.freeze({
   "and": andOp,
   "or": orOp,
   "==": equalOp,
+  "Error": errorClass,
+  "Ordering": orderingEnum,
+  "Comparable": comparableClass,
+  "Equatable": equatableClass,
+  "Collection": collectionClass,
 })
 
 String.prototype.type = stringType

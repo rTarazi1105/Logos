@@ -46,13 +46,13 @@ class Context {
   
   
   // Collection, Equatable, Comparable, Error
-  classify(classs, name) {
+  classify(classs, typeName) {
     if (!this.classes.has(classs)) {
       this.classes.set(classs, new Set())
     }
-    this.classes.get(classs).add(name)
+    this.classes.get(classs).add(typeName)
   }
-  lookupClass(classs, name) {
+  lookupClass(classs, typeName) {
     return this.classes.get(classs).has(name) || this.parent.lookupClass(name)
   }
   
@@ -252,15 +252,15 @@ export default function analyze(match) {
     must(fieldNames.size === type.fields.length, "Fields must be distinct", at)
   }
   
-  function checkFields(struct, classs) {
+  function checkFieldMap(struct, classs) {
     return classs.fields.every(
       (field, _i) =>
         struct.fields.find(field)?.type === field.type
     )
   }
 
-  function mustHaveMember(structType, field, at) {
-    must(structType.fields.map(f => f.name).includes(field), "No such field", at)
+  function mustHaveMember(structOrEnumType, field, at) {
+    must(structOrEnumType.fields.map(f => f.name).includes(field), "No such field", at)
   }
 
   function mustBeInLoop(at) {
@@ -509,17 +509,81 @@ export default function analyze(match) {
       return infix
     }
     
-    TypeParam(_leftAngle, types, 
-    IdAndSuperClass(id, superClass) {
+    DeclaredClass(id) {
+      // Lookup local is ok, they can only be declared globally
+      // Though if not found, assume it's declared later
+      classs = context.lookup(id.sourceString)
+      if classs == null {
+        id = id.sourceString
+        // Last two null show that it's assumed before declaration
+        // But empty list should remain
+        classs = core.classs(id, [], null, null)
+        context.add(id, classs)
+      }
+      return classs
+    }
+    Struct(id) {
+      struct = context.lookup(id.sourceString)
+      if struct == null {
+        id = id.sourceString
+        struct = core.struct(id, null)
+        context.add(id, struct)
+      }
+      return struct
+    }
+    VarField(id, _dot, field) {
+      variable = context.lookup(id.sourceString)
+      field = field.sourceString
+      if variable == null {
+        // Assume tbd enum
+        id = id.sourceString
+        enumeration = core.enumeration(id, [core.field(field,null])
+        context.add(id, enumeration)
+      } else {
+        //mustHaveMember(variable, field, { at: id } )
+        field = variable.fields.find((f) => f.name === field) // Can be an enum
+        if field == null {
+          must(false, "No such field", { at: id })
+        }
+        
+        if variable.kind === "Enum" {
+          return core.enumCase(variable, field)
+        } else {
+          return core.varField(variable, field)
+        }
+      }
+    }
+    FilledTypeParams(_leftAngle, types, _rightAngle) {
+      // TODO: CHECK
+      return types.map((t) => t.rep())
+    }
+    FilledClass(declaredClass, filledTypeParams) {
+      classs = declaredClass.rep()
+      params = filledTypeParams.rep()
+      must(classs.typeParams.length === params.length, "Too many or few type parameters", { at: declaredClass } )
+      return core.classFilledWithParam(classs, params)
+    }
+    SuperClass(_colon, classes) {
+      return classes.map((c) => c.rep())
+    }
+    IdAndSuperClass(id, superclasses) {
       mustNotBeAlreadyDeclared(id.sourceString, { at: id })
       id = id.sourceString
-      
-      superClasss = context.lookup(superClass.sourceString)
-      mustBeTypeT(superClasss, "Classs", { at: superClass })
-      
+      typeParam = core.typeParameter(id)
+      for classs in superclasses {
+        typeParam.classes.add(classs)
+      }
+      return typeParam
+    }
+    TypeParam(_leftAngle, typeParamList, _rightAngle) {
+      return typeParamList.map((t) => t.rep())
+    }
+    
+    
+    // Types can be declared out of order, so check what's already in the database
+    StructDecl(_struct, id, typeParameters, superClass, _leftBracket, parameters, _rightBracket) {
       
     }
-    StructDecl(_struct, id, typeParameters, 
   });
 
 

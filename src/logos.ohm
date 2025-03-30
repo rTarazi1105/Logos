@@ -67,15 +67,14 @@ Logos {
 	ModHead = TypeParam? "(" ListOf<ModParam, ","> ")" ReturnType?
 	// OptModParams = ListOf<ModParam, ",">
 	
-	MethodDecl = "mod" (Struct | Class) "." id2 MethodHead ModBody
+	MethodDecl = "mod" Struct "." id2 MethodHead ModBody
 	MethodHead = TypeParam? "(" ListOf<ModParamWithSelf, ","> ")" ReturnType?
 	ModParamWithSelf = ModParam | SelfParam
 	
 	ReturnType = "->" Mutable? ValidType
 	
 	ClassDecl = "class" id2 TypeParam? SuperClass? ClassBody
-	SuperClass = ":" ListOf<ClassInclError, ",">
-	ClassInclError = Class | "Error"
+	SuperClass = ":" ListOf<FilledClass, "+">
 	ClassBody = "{" ClassLine* "}"
 	ClassLine
 		= ClassField
@@ -84,7 +83,7 @@ Logos {
 	ClassMod = "mod" id2 MethodHead ModBodyOrColon
 	ModBodyOrColon = ModBody | ";"
 	
-	ClassImpl = ValidType "impl" Class ClassImplBody
+	ClassImpl = ValidType "impl" FilledClass ClassImplBody
 	ClassImplBody = "{" ClassImplLine* "}"
 	ClassImplLine
 		= ClassImplField
@@ -94,7 +93,7 @@ Logos {
 	
 	TypeParam = "<" ListOf<IdAndSuperClass, ","> ">"		// no superclass = Any
 	IdAndSuperClass = id2 SuperClass?
-	FilledTypeParam = "<" ListOf<ValidType, ","> ">"
+	FilledTypeParams = "<" ListOf<ValidType, ","> ">"
 	
 	Param = (id2 ":")? ValidType				// if no id: let it be 0,1 etc
 	SelfParam = Mutable? "self"
@@ -107,10 +106,10 @@ Logos {
 		| DefaultValidType
 		| NumberedRelation
 		| ArrayType
-		| ClassMaybeWithTypeParam
+		| FilledClass
 		| Struct
 		| Enum
-	ClassMaybeWithTypeParam = DeclaredClass FilledTypeParam?
+	FilledClass = DeclaredClass FilledTypeParams?
 	NumberedRelation = "relation" Numbering?
 	DefaultValidType
 		= "value"
