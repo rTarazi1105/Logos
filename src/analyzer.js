@@ -46,31 +46,40 @@ class Context {
   
   
   // Collection, Equatable, Comparable, Error
-  classify(classs, typeName) {
-    if (!this.classes.has(classs)) {
-      this.classes.set(classs, new Set())
+  // classes: Map<type, Set<class>>
+  classify(classs, type) {
+    if (!this.classes.has(type)) {
+      this.classes.set(type, new Set())
     }
-    this.classes.get(classs).add(typeName)
+    this.classes.get(type).add(classs)
   }
-  lookupClass(classs, typeName) {
-    return this.classes.get(classs).has(name) || this.parent.lookupClass(name)
+  lookupClass(classs, type) {
+    if this.classes.get(type).has(classs) {
+      return true
+    }
+    for superClass of this.classes.get(type) {
+      if lookupClass(superClass, classs) {
+        return true
+      }
+    }
+    // Don't look in parent - it should be the same
+    // this.parent.lookupClass(classs, type)
+    
+    return false
   }
   
   
   
   static root() {
+    equatableClass = core.standardLibrary["Equatable"]
+    comparableClass = core.standardLibrary["Comparable"]
+    
     return new Context({
       locals: new Map(Object.entries(core.standardLibrary)),
       classes: new Map([
-        ["Collection", Set()], // Add all arrays and tuples
-        ["Equatable", Set([
-          core.boolType,
-          core.intType,
-        ])],
-        ["Comparable", Set([	// Add anything equatable
-          core.intType,
-        ])],
-        ["Error", Set()],
+        [core.boolType, Set([equatableClass])]
+        [core.intType, Set([comparableClass])]
+        [comparableClass, Set([equatableClass])]
       ])
     })
   }
@@ -176,7 +185,6 @@ export default function analyze(match) {
 
   function equivalent(t1, t2) {
     return (
-      t2 === core.anyType ||
       t1 === t2 || (
       
         t1?.kind == t2?.kind && (
@@ -251,6 +259,11 @@ export default function analyze(match) {
     const fieldNames = new Set(type.fields.map(f => f.name))
     must(fieldNames.size === type.fields.length, "Fields must be distinct", at)
   }
+
+  function mustHaveDistinctModules(classs, at) {
+    const moduleNames = new Set(classs.modules.map(f => f.name))
+    must(moduleNames.size === classs.modules.length, "Fields must be distinct", at)
+  }
   
   function checkFieldMap(struct, classs) {
     return classs.fields.every(
@@ -258,9 +271,21 @@ export default function analyze(match) {
         struct.fields.find(field)?.type === field.type
     )
   }
+  
+  function mustMapFields(struct, classs, at) {
+    must(checkFieldMap(struct, classs), "Fields do not map", at)
+  }
 
   function mustHaveMember(structOrEnumType, field, at) {
-    must(structOrEnumType.fields.map(f => f.name).includes(field), "No such field", at)
+    must(structOrEnumType.fields.some(typeField => typeField.name === field.name && typeField.type === field.type , "No such field", at)
+  }
+  
+  function mustHaveModules(classImpl, classs, at) {
+    for (i, mod) in classs.modules.entries() {
+      otherMod = classImpl.modules[i]
+      must(otherMod.name === mod.name, "Mod mismatch in name", at)
+      must(equivalent(mod.Type, otherMod.type), "Mod mismatch in type", at)
+    }
   }
 
   function mustBeInLoop(at) {
@@ -300,7 +325,7 @@ export default function analyze(match) {
   
   
   // BUILDER
-  
+  // TODO: For .map, use .children if + or *. If list, use .asIteration.children
   
   const builder = match.matcher.grammar.createSemantics().addOperation("rep", {
     Program(sections) {
@@ -555,7 +580,8 @@ export default function analyze(match) {
     },
     FilledTypeParams(_leftAngle, types, _rightAngle) {
       // TODO: CHECK
-      return types.map((t) => t.rep())
+      // Check ValidType != self at moddecl
+      return types.asIteration().children.map((t) => t.rep())
     },
     FilledClass(declaredClass, filledTypeParams) {
       classs = declaredClass.rep()
@@ -564,25 +590,139 @@ export default function analyze(match) {
       return core.classFilledWithParam(classs, params)
     },
     SuperClass(_colon, classes) {
-      return classes.map((c) => c.rep())
+      return classes.asIteration().children.map((c) => c.rep())
     },
     IdAndSuperClass(id, superclasses) {
       mustNotBeAlreadyDeclared(id.sourceString, { at: id })
       id = id.sourceString
       let typeParam = core.typeParameter(id)
-      for (classs in superclasses) {
+      for (classs in superclasses.rep()) {
         typeParam.classes.add(classs)
       }
       return typeParam
     },
     TypeParam(_leftAngle, typeParamList, _rightAngle) {
-      return typeParamList.map((t) => t.rep())
+      return typeParamList.asIteration().children.map((t) => t.rep())
     },
     
     
     // Types can be declared out of order, so check what's already in the database
     StructDecl(_struct, id, typeParameters, superClass, _leftBracket, parameters, _rightBracket) {
+      idStr = id.sourceString
+      mustNotBeAlreadyDeclared(idStr, { at: id })
       
+      // can be null
+      typeParamsRep = typeParameters.rep()
+      
+      // Allow recursion (but not for the type params)
+      const struct = core.struct(idStr, typeParamsRep, [])
+      context.add(idStr, struct)
+      
+      // Auto-impl superclasses
+      // can be null
+      superClassRep = superClass.rep()
+      for classs in superClassRep {
+        if classs.modules != [] {
+          must(false, "Class has modules, use impl instead", { at: id })
+        }
+        mustMapFields(struct, classs)
+        context.classify(classs, struct)
+      }
+      
+      // Analyze parameters with typeParams
+      context = context.newChildContext({ inLoop: false, inData: false, module: struct })
+      for typeParam in typeParamsRep {
+        // Already checked mustNotBeAlreadyDeclared in IdAndSuperClass
+        context.add(typeParam.name, typeParam)
+      }
+      
+      params = parameters.asIteration().children.map((p) => p.rep())
+      struct.fields = params
+      mustHaveDistinctFields(struct, { at: id })
+      mustNotBeSelfContaining(struct, { at: id })
+      
+      context = context.parent
+      return core.structDeclaration(struct)
+    }
+    
+    EnumDecl(_enum, id, typeParameters, _leftBracket, parameters, _rightBracket) {
+      idStr = id.sourceString
+      mustNotBeAlreadyDeclared(idStr, { at: id })
+      
+      // can be null
+      typeParamsRep = typeParameters.rep()
+      
+      const enumeration = core.enumeration(idStr, typeParamsRep, [])
+      context.add(idStr, enumeration)
+      
+      context = context.newChildContext({ inLoop: false, inData: false, module: enumeration })
+      for typeParam in typeParamsRep {
+        context.add(typeParam.name, typeParam)
+      }
+      
+      params = parameters.asIteration().children.map((p) => p.rep())
+      enumeration.cases = params
+      mustHaveDistinctFields(enumeration, { at: id })
+      mustNotBeSelfContaining(enumeration, { at: id })
+      
+      context = context.parent
+      return core.enumDeclaration(enumeration)
+    }
+    
+    ClassDecl(_class, id, typeParameters, superClass, classBody) {
+      idStr = id.sourceString
+      mustNotBeAlreadyDeclared(idStr, { at: id })
+      
+      // can be null
+      typeParamsRep = typeParameters.rep()
+      
+      const classs = core.classs(idStr, typeParamsRep, [], [])
+      context.add(idStr, classs)
+      
+      // can be null
+      superClassRep = superClass.rep()
+      for superClass in superClassRep {
+        mustMapFields(classs, superClass)
+        context.classify(superClass, classs)
+      }
+      
+      context = context.newChildContext({ inLoop: false, inData: false, module: struct })
+      for typeParam in typeParamsRep {
+        context.add(typeParam.name, typeParam)
+      }
+      
+      for line in classBody.children.map(l => l.rep()) {
+        if line.kind === "Field" {
+          classs.fields.push(line)
+        } else if line.kind === "Module" {
+          classs.modules.push(line)
+        } else {
+          must(false, "Expected field or module in class", { at: id })
+        }
+      }
+      
+      mustHaveDistinctFields(classs, { at: id })
+      mustHaveDistinctModules(classs, { at: id })
+      mustNotBeSelfContaining(classs, { at: id })
+      
+      context = context.parent
+      return core.classDeclaration(classs)
+    }
+    
+    // TODO: things starting with "Class"
+    
+    ClassImpl(type, _impl, classs, body) {
+      fields = []
+      modules = []
+      for line in body.children.map(l => l.rep()).{
+        if line.kind === "Field" {
+          classs.fields.push(line)
+        } else if line.kind === "Module" {
+          classs.modules.push(line)
+        } else {
+          must(false, "Expected field or module in impl", { at: id })
+        }
+      }
     }
   });
 
