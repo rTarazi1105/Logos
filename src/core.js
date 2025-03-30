@@ -42,7 +42,7 @@ export function method(name, struct, params, returnType, body) {
 }
 
 export function classFilledWithParam(classs, filledTypeParams) {
-  return { kind: "FilledClass", classs, filledTypeParams) }
+  return { kind: "FilledClass", classs, filledTypeParams }
 }
 
 export function classs(name, typeParams, fields, modules) {	// auto-impl "

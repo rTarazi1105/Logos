@@ -15,25 +15,25 @@ class Context {
   }
   
   addStatement(statement, truth) {
-    if statement?.statement != true {
+    if (statement?.statement != true) {
       throw new Error(`Not a statement: ${statement}`)
     }
   
     statement = statement
     truth = truth
     // Unwrap
-    while statement.kind === "Statement" {
+    while (statement.kind === "Statement") {
       statement = statement.inner
     }
     // Unwrap negation
-    while statement.kind === "Negation" {
+    while (statement.kind === "Negation") {
       statement = statement.inner
       truth = !truth
     }
     
     existing = this.locals.get(statement)
-    if existing != null {
-      if existing != truth {
+    if (existing != null) {
+      if (existing != truth) {
         throw new Error(`Contradiction in data: ${statement.name}`)
       } else {
         console.log(`Statement ${statement.name} redundant`)
@@ -321,7 +321,7 @@ export default function analyze(match) {
         value = core.value(id)
         context.add(id, value)
         return core.valueDeclaration(value)
-    }
+    },
     
     RelationDecl(id, _colon1, args, _colon2, statement) {
       mustNotAlreadyBeDeclared(id.sourceString, { at: id })
@@ -341,7 +341,7 @@ export default function analyze(match) {
       // Go back up to the outer context before returning
       context = context.parent
       return core.relationDeclaration(relation)
-    }
+    },
     
     ArgValue(id) {
       mustNotAlreadyBeDeclared(id.sourceString, { at: id })
@@ -350,7 +350,7 @@ export default function analyze(match) {
       value = core.value(id)
       context.add(value)
       return value
-    }
+    },
     
     OperationDecl(_op, id, _colon1, args, _colon2, statement) {
       mustNotAlreadyBeDeclared(id.sourceString, { at: id })
@@ -370,7 +370,7 @@ export default function analyze(match) {
       // Go back up to the outer context before returning
       context = context.parent
       return core.operationDeclaration(operation)
-    }
+    },
     
     ArgStatement(id) {
       mustNotAlreadyBeDeclared(id.sourceString, { at: id })
@@ -379,7 +379,7 @@ export default function analyze(match) {
       statement = core.statement(id, null)
       context.add(statement)
       return statement
-    }
+    },
     
     PropertyDecl(_prop, id, _colon1, args, _colon2, statement) {
       mustNotAlreadyBeDeclared(id.sourceString, { at: id })
@@ -399,7 +399,7 @@ export default function analyze(match) {
       // Go back up to the outer context before returning
       context = context.parent
       return core.propertyDeclaration(property)
-    }
+    },
     
     ArgRelation(id, numbering) {
       mustNotAlreadyBeDeclared(id.sourceString, { at: id })
@@ -410,13 +410,13 @@ export default function analyze(match) {
       relation = core.relation(id, new Array(number), null)
       context.add(relation)
       return relation
-    }
+    },
     
     Numbering(_leftArrow, number, _rightArrow) {
       mustBeInteger(number.sourceString, { at: number })
       
       return Number(number.sourceString)
-    }
+    },
     
     StatementDecl(id, _colon, body) {
       body = body.rep()
@@ -427,7 +427,7 @@ export default function analyze(match) {
       named = core.statement(id, body)
       context.add(id, named)
       return core.statementDeclaration(named)
-    }
+    },
     
     InfixDecl(_infix, id, operation) {
       mustNotAlreadyBeDeclared(id.sourceString, { at: id })
@@ -436,14 +436,14 @@ export default function analyze(match) {
       infix = core.infix(id, operation)
       context.add(id, infix)
       return core.infixDeclaration(infix)
-    }
+    },
     
     Assume(_assume, id, truth, _colon, body) {
       mustBeBoolean(truth, { at: body })
       statement = body.rep()
       context.addStatement(statement, truth)
       
-      if id != null {
+      if (id != null) {
         mustNotAlreadyBeDeclared(id.sourceString, { at: id })
         id = id.sourceString
         
@@ -451,69 +451,69 @@ export default function analyze(match) {
         context.add(id, named)
         return core.assumptionDeclaration(named, truth)
       }
-    }
+    },
     
     Equality(v1, _equals, v2) {
       return core.equalityStatement(v1.rep(), v2.rep())
-    }
+    },
     FilledInfix(s1, inf, s2) {
       statement1 = s1.rep()
       statement2 = s2.rep()
       infix = inf.rep()
       return core.filledOperation(infix?.operation, [statement1, statement2])
-    }
+    },
     FilledOperation(id, _leftBracket, statements, _rightBracket) {
       operation = id.rep()
       statementsRep = statements.rep()
       return core.filledOperation(operation, statementsRep)
-    }
+    },
     FilledRelation(id, _leftBracket, values, _rightBracket) {
       relation = id.rep()
       valuesRep = values.rep()
       return core.filledRelation(relation, valuesRep)
-    }
+    },
     FilledProperty(id, _leftBracket, relations, _rightBracket) {
       property = id.rep()
       relationsRep = relations.rep()
       return core.filledProperty(property, relationsRep)
-    }
+    },
     
     DeclaredStatement(s) {
       statement = context.lookup(s.sourceString)
       mustBeStatement(statement, { at: s } )
       return statement
-    }
+    },
     Relation(r) {
       relation = context.lookup(r.sourceString)
       mustBeTypeT(relation?.kind, "RelationType", { at: r } )
       return relation
-    }
+    },
     Operation(o) {
       operation = context.lookup(o.sourceString)
       mustBeTypeT(operation?.kind, "OperationType", { at: o } )
       return operation
-    }
+    },
     Property(p) {
       property = context.lookup(p.sourceString)
       mustBeTypeT(property?.kind, "PropertyType", { at: p } )
       return property
-    }
+    },
     Value(v) {
       value = context.lookup(v.sourceString)
       mustBeTypeT(value, "Value", { at: v } )
       return value
-    }
+    },
     Infix(i) {
       infix = context.lookup(i.sourceString)
       mustBeTypeT(infix, "Infix", { at: i } )
       return infix
-    }
+    },
     
     DeclaredClass(id) {
       // Lookup local is ok, they can only be declared globally
       // Though if not found, assume it's declared later
       classs = context.lookup(id.sourceString)
-      if classs == null {
+      if (classs == null) {
         id = id.sourceString
         // Last two null show that it's assumed before declaration
         // But empty list should remain
@@ -521,63 +521,63 @@ export default function analyze(match) {
         context.add(id, classs)
       }
       return classs
-    }
+    },
     Struct(id) {
       struct = context.lookup(id.sourceString)
-      if struct == null {
+      if (struct == null) {
         id = id.sourceString
         struct = core.struct(id, null)
         context.add(id, struct)
       }
       return struct
-    }
+    },
     VarField(id, _dot, field) {
       variable = context.lookup(id.sourceString)
       field = field.sourceString
-      if variable == null {
+      if (variable == null) {
         // Assume tbd enum
         id = id.sourceString
-        enumeration = core.enumeration(id, [core.field(field,null])
+        enumeration = core.enumeration(id, [core.field(field,null)])
         context.add(id, enumeration)
       } else {
         //mustHaveMember(variable, field, { at: id } )
         field = variable.fields.find((f) => f.name === field) // Can be an enum
-        if field == null {
+        if (field == null) {
           must(false, "No such field", { at: id })
         }
         
-        if variable.kind === "Enum" {
+        if (variable.kind === "Enum") {
           return core.enumCase(variable, field)
         } else {
           return core.varField(variable, field)
         }
       }
-    }
+    },
     FilledTypeParams(_leftAngle, types, _rightAngle) {
       // TODO: CHECK
       return types.map((t) => t.rep())
-    }
+    },
     FilledClass(declaredClass, filledTypeParams) {
       classs = declaredClass.rep()
       params = filledTypeParams.rep()
       must(classs.typeParams.length === params.length, "Too many or few type parameters", { at: declaredClass } )
       return core.classFilledWithParam(classs, params)
-    }
+    },
     SuperClass(_colon, classes) {
       return classes.map((c) => c.rep())
-    }
+    },
     IdAndSuperClass(id, superclasses) {
       mustNotBeAlreadyDeclared(id.sourceString, { at: id })
       id = id.sourceString
-      typeParam = core.typeParameter(id)
-      for classs in superclasses {
+      let typeParam = core.typeParameter(id)
+      for (classs in superclasses) {
         typeParam.classes.add(classs)
       }
       return typeParam
-    }
+    },
     TypeParam(_leftAngle, typeParamList, _rightAngle) {
       return typeParamList.map((t) => t.rep())
-    }
+    },
     
     
     // Types can be declared out of order, so check what's already in the database
@@ -590,8 +590,8 @@ export default function analyze(match) {
 
 
 
-// TOAL CODE 
-  const builder = match.matcher.grammar.createSemantics().addOperation("rep", {
+  // TOAL CODE 
+  const builder2 = match.matcher.grammar.createSemantics().addOperation("rep", {
     Program(statements) {
       return core.program(statements.children.map(s => s.rep()))
     },
