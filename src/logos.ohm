@@ -213,7 +213,7 @@ Logos {
 	idchar = alnum | "_"
 	idletter = letter | "_"
 	dot = "."
-	keyword = key " "
+	keyword = key " " // ~alnum
 	key
 		= "true" | "false"
 		| "mut"

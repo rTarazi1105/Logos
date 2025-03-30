@@ -64,13 +64,13 @@ export function parameter(name, mutable, type) {
 
 // DATA
 // True statements - really, relations between values - must be local
-export function relationTruths(relation) {
-  return { kind: "RelationTruths", relation, values: new Set() }
+export function relationTruths() {
+  return { kind: "RelationTruths", values: new Set() }
 }
 
 
-export function value(name, relation) {
-  return { kind: "Value", name, relation }
+export function value(name) {
+  return { kind: "Value", name }
 }
 
 export function relation(name, args, statement) {
@@ -89,16 +89,8 @@ export function property(name, relationArgs, statement) {	// relationArgs are nu
   return { kind: propertyType(args.length), name, relationArgs, statement }
 }
 
-export function relationArg(name, number) {
-  return { kind: "RelationArg", name, number }
-}
-
-export function statement(name, statement) {
-  return { kind: "Statement", name, statement }
-}
-
-export function assumption(name, truth, statement) {
-  return { kind: "Assumption", name, truth, statement }
+export function statement(name, innerStatement) {
+  return { kind: "Statement", statement: true, name, inner: innerStatement }
 }
 
 
@@ -114,19 +106,19 @@ export function propertyType(number, argNumbers) {
 
 	// Statements
 export function equalityStatement(value1, value2) {
-  return { kind: "EqualityStatement", value1, value2 }
+  return { kind: "EqualityStatement", statement: true, value1, value2 }
 }
-export function negationStatement(value) {
-  return { kind: "Negation", value }
+export function negationStatement(inner) {
+  return { kind: "Negation", statement: true, inner }
 }
 export function filledRelation(relation, values) {
-  return { kind: "FilledRelation", relation, values }
+  return { kind: "FilledRelation", statement: true, relation, values }
 }
 export function filledOperation(operation, statements) {
-  return { kind: "FilledOperation", operation, statements }
+  return { kind: "FilledOperation", statement: true, operation, statements }
 }
 export function filledProperty(property, relations) {
-  return { kind: "FilledProperty", property, relations }
+  return { kind: "FilledProperty", statement: true, property, relations }
 }
 	// Declarations
 export function valueDeclaration(value) {
@@ -144,8 +136,8 @@ export function infixDeclaration(infix) {
 export function propertyDeclaration(value) {
   return { kind: "ValueDeclaration", value }
 }
-export function assumptionDeclaration(assumption) {
-  return { kind: "AssumptionDeclaration", assumption }
+export function assumptionDeclaration(statement, truth) {
+  return { kind: "AssumptionDeclaration", statement, truth }
 }
 export function statementDeclaration(statement) {
   return { kind: "StatementDeclaration", statement }

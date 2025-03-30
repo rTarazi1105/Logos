@@ -1,7 +1,11 @@
 class Context {
-  constructor({ parent = null, locals = new Map(), relations = new Map(), classes = new Map(), inLoop = false, module: f = null }) {
-    Object.assign(this, { parent, locals, relations, classes, inLoop, module: f })
+  constructor({ parent = null, locals = new Map(), classes = new Map(), inLoop = false, inData = false, module = null }) {
+  // Data can have locals
+  // Data can be inside module but not vice versa
+    Object.assign(this, { parent, locals, classes, inLoop, module })
   }
+  // Most will be Key: String, value: T
+  // For truths, key: statement, value: bool, so these can be local
   add(name, entity) {
     this.locals.set(name, entity)
   }
@@ -9,21 +13,34 @@ class Context {
     return this.locals.get(name) || this.parent?.lookup(name)
   }
   
-  // Relations: Map<name, Set<List[values for which it is true]>
-  lookupRelation(name) {
-    return this.statements.get(name)
-  }
-  addRelation(name, values) {
-    if (!this.statements.has(name)) {
-      this.statements.set(name, new Set())
-    } else {
-      relation_number = this.statements.get(name).values().next().value.length;
-      values_length = values.length;
-      if relation_number != values.length {
-        throw new Error(`Relation ${name} only accepts ${relation_number} values but was given ${values_length}`)
+  addStatement(statement, truth) {
+    if statement?.statement != true {
+      throw new Error(`Not a statement: ${statement}`)
+    }
+  
+    statement = statement
+    truth = truth
+    // Unwrap
+    while statement.kind === "Statement" {
+      statement = statement.inner
+    }
+    // Unwrap negation
+    while statement.kind === "Negation" {
+      statement = statement.inner
+      truth = !truth
+    }
+    
+    existing = this.locals.get(statement)
+    if existing != null {
+      if existing != truth {
+        throw new Error(`Contradiction in data: ${statement.name}`)
+      } else {
+        console.log(`Statement ${statement.name} redundant`)
+        return
       }
     }
-    this.statements.get(name).add(values)
+    
+    this.locals.set(statement, truth)
   }
   
   
@@ -43,9 +60,6 @@ class Context {
   static root() {
     return new Context({
       locals: new Map(Object.entries(core.standardLibrary)),
-      relations: new Map([
-        ["Equal", Set()]
-      ]),
       classes: new Map([
         ["Collection", Set()], // Add all arrays and tuples
         ["Equatable", Set([
@@ -93,6 +107,13 @@ export default function analyze(match) {
 
   function mustBeVoid(e, at) {
     must(e.type === core.voidType, "Expected void", at)
+  }
+  
+  function mustBeStatement(e, at) {
+    must(e?.statement === true || e.kind === core.booleanType, "Expected statement", at)
+  }
+  function mustBeValue(e, at) {
+    must(e?.kind === "Value", "Expected value", at)
   }
   
   function mustHaveClass(e, at, className) {
@@ -175,6 +196,7 @@ export default function analyze(match) {
             (
               t1?.kind === "RelationType" ||
               t1?.kind === "OperationType" ||
+              t1?.kind === "RelationArgType" ||
               (
                 t1?.kind === "PropertyType" &&
                 t1?.argNumbers.every((n,i) => t2?.argNumbers[i] === n)
@@ -275,11 +297,6 @@ export default function analyze(match) {
   }
   
   
-  
-  
-  
-  
-  
   // BUILDER
   
   
@@ -335,47 +352,165 @@ export default function analyze(match) {
     // Data
     DataDecl_valueDecl(_value, id, relation) {
         mustNotAlreadyBeDeclared(id.sourceString, { at: id })
+        id = id.sourceString
         
         existingRelation = context.lookup(relation);
         if (existingRelation == null) {
             // Assume it will be defined later
             newRelation = core.relation(relation, ["_"], null)
-            context.addRelation(relation, [id])
             context.add(relation, newRelation)
             
-            context.add(id, core.value(id, newRelation))
+            context.addStatement(core.filledRelation(newRelation, [id]), true)
+            value = core.value(id)
+            context.add(id, value)
+            return core.valueDeclaration(value)
         } else {
             mustHaveNumber(existingRelation.kind, 1, { at: id })
             
-            context.add(id, core.value(id, existingRelation))
+            context.addStatement(core.filledRelation(existingRelation, [id]), true)
+            value = core.value(id)
+            context.add(id, value)
+            return core.valueDeclaration(value)
         }
     }
     
     DataDecl_relationDecl(id, _colon1, args, _colon2, statement) {
-        mustNotAlreadyBeDeclared(id.sourceString, { at: id })
-        
-        context.add(id, core.relation(id, args, statement))
+      mustNotAlreadyBeDeclared(id.sourceString, { at: id })
+      id = id.sourceString
+      
+      const relation = core.relation(id, args, null)
+      // Add immediately so that we can have recursion
+      context.add(id, relation)
+      
+      // Parameters are part of the child context
+      context = context.newChildContext({ inLoop: false, inData: true, module: relation })
+      relation.args = args.rep()
+      
+      // Analyze body while still in child context
+      relation.statement = statement.rep()
+
+      // Go back up to the outer context before returning
+      context = context.parent
+      return core.relationDeclaration(relation)
     }
     
-    DataDecl_operationDecl(_operation, id, _colon1, args, _colon2, statement) {
-        mustNotAlreadyBeDeclared(id.sourceString, { at: id })
-        
-        context.add(id, core.operation(id, args, statement))
+    ArgValue(id) {
+      mustNotAlreadyBeDeclared(id.sourceString, { at: id })
+      id = id.sourceString
+    
+      value = core.value(id)
+      context.add(value)
+      return value
     }
     
-    ArgRelation(id, number) {
-        mustNotAlreadyBeDeclared(id.sourceString, { at: id })
-        
-        context.add(id, core.relationArg(id, number))
+    DataDecl_operationDecl(_op, id, _colon1, args, _colon2, statement) {
+      mustNotAlreadyBeDeclared(id.sourceString, { at: id })
+      id = id.sourceString
+      
+      const operation = core.operation(id, args, null)
+      // Add immediately so that we can have recursion
+      context.add(id, operation)
+      
+      // Parameters are part of the child context
+      context = context.newChildContext({ inLoop: false, inData: true, module: operation })
+      operation.args = args.rep()
+      
+      // Analyze body while still in child context
+      operation.statement = statement.rep()
+
+      // Go back up to the outer context before returning
+      context = context.parent
+      return core.operationDeclaration(operation)
     }
     
-    DataDecl_propertyDecl(_property, id, _colon1, args, _colon2, statement) {
+    ArgStatement(id) {
+      mustNotAlreadyBeDeclared(id.sourceString, { at: id })
+      id = id.sourceString
+    
+      statement = core.statement(id, null)
+      context.add(statement)
+      return statement
+    }
+    
+    DataDecl_propertyDecl(_prop, id, _colon1, args, _colon2, statement) {
+      mustNotAlreadyBeDeclared(id.sourceString, { at: id })
+      id = id.sourceString
+      
+      const property = core.property(id, args, null)
+      // Add immediately so that we can have recursion
+      context.add(id, property)
+      
+      // Parameters are part of the child context
+      context = context.newChildContext({ inLoop: false, inData: true, module: property })
+      property.args = args.rep()
+      
+      // Analyze body while still in child context
+      property.statement = statement.rep()
+
+      // Go back up to the outer context before returning
+      context = context.parent
+      return core.propertyDeclaration(property)
+    }
+    
+    ArgRelation(id, numbering) {
+      mustNotAlreadyBeDeclared(id.sourceString, { at: id })
+      id = id.sourceString
+      
+      number = numbering.rep()
+    
+      relation = core.relation(id, new Array(number), null)
+      context.add(relation)
+      return relation
+    }
+    
+    Numbering(_leftArrow, number, _rightArrow) {
+      mustBeInteger(number.sourceString, { at: number })
+      
+      return Number(number.sourceString)
+    }
+    
+    DataDecl_statementDecl(id, _colon, body) {
+      body = body.rep()
+      mustBeStatement(body, { at: id } )
+      mustNotAlreadyBeDeclared(id.sourceString, { at: id })
+      id = id.sourceString
+      
+      named = core.statement(id, body)
+      context.add(id, named)
+      return core.statementDeclaration(named)
+    }
+    
+    DataDecl_infixDecl(_infix, id, operation) {
+      mustNotAlreadyBeDeclared(id.sourceString, { at: id })
+      id = id.sourceString
+      
+      infix = core.infix(id, operation)
+      context.add(id, infix)
+      return core.infixDeclaration(infix)
+    }
+    
+    DataDecl_assume(_assume, id, truth, _colon, body) {
+      mustBeBoolean(truth, { at: body })
+      statement = body.rep()
+      context.addStatement(statement, truth)
+      
+      if id != null {
         mustNotAlreadyBeDeclared(id.sourceString, { at: id })
+        id = id.sourceString
         
-        context = context.newChildContext({ inLoop: false, function: fun })
-        fun.params = parameters.rep()
-        
-        context.add(id, core.operation(id, args, statement))
+        named = core.statement(id, statement)
+        context.add(id, named)
+        return core.assumptionDeclaration(named, truth)
+      }
+    }
+    
+    Statement_equality(v1, _equals, v2) {
+      
+      mustBeValue(v1, { at: v1 } )
+      return core.equalityStatement(v1, v2)
+    }
+    Statement_filledInfix(s1, infix, s2) {
+      
     }
   });
 
