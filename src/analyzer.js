@@ -4,8 +4,9 @@ class Context {
   // Data can be inside module but not vice versa
     Object.assign(this, { parent, locals, classes, inLoop, module })
   }
-  // Most will be Key: String, value: T
-  // For truths, key: statement, value: bool, so these can be local
+  // Default will be Key: String, value: T
+  // For truths, key: statement, value: bool
+  // For classes, 
   add(name, entity) {
     this.locals.set(name, entity)
   }
@@ -112,8 +113,9 @@ export default function analyze(match) {
   function mustBeStatement(e, at) {
     must(e?.statement === true || e.kind === core.booleanType, "Expected statement", at)
   }
-  function mustBeValue(e, at) {
-    must(e?.kind === "Value", "Expected value", at)
+  
+  function mustBeTypeT(e, t, at) {
+    must(e?.kind === t, `Expected type ${t}`, at)
   }
   
   function mustHaveClass(e, at, className) {
@@ -304,77 +306,24 @@ export default function analyze(match) {
     Program(sections) {
         return core.program(sections.children.map(s => s.rep()));
     },
-
-    Section_dataDeclLine(dataDecl, _semicolon) {
-        return dataDecl.rep();
-    },
-
-    Section_structDecl(structDecl) {
-        return structDecl.rep();
-    },
-
-    Section_enumDecl(enumDecl) {
-        return enumDecl.rep();
-    },
-
-    Section_classDecl(classDecl) {
-        return classDecl.rep();
-    },
-
-    Section_methodDecl(methodDecl) {
-        return methodDecl.rep();
-    },
-
-    Section_modDecl(modDecl) {
-        return modDecl.rep();
-    },
-
-    Section_classImpl(classImpl) {
-        return classImpl.rep();
-    },
-
-    Statement_bool(value) {
-        return core.booleanLiteral(value.sourceString === "true");
-    },
-
-    Statement_equality(left, _op, right) {
-        return core.equality(left.rep(), right.rep());
-    },
-
-    Statement_filledInfix(left, op, right) {
-        return core.infixExpression(left.rep(), op.sourceString, right.rep());
-    },
-
-    Statement_filledRelation(left, op, right) {
-        return core.relation(left.rep(), op.sourceString, right.rep());
-    }
     
     // Data
-    DataDecl_valueDecl(_value, id, relation) {
+    ValueDecl(_value, id, relationId) {
         mustNotAlreadyBeDeclared(id.sourceString, { at: id })
+        mustHaveBeenFound(relationId.sourceString, { at: relationId })
         id = id.sourceString
+        relationId = relationId.sourceString
         
-        existingRelation = context.lookup(relation);
-        if (existingRelation == null) {
-            // Assume it will be defined later
-            newRelation = core.relation(relation, ["_"], null)
-            context.add(relation, newRelation)
+        relation = context.lookup(relationId);
+        mustHaveNumber(relation.kind, 1, { at: id })
             
-            context.addStatement(core.filledRelation(newRelation, [id]), true)
-            value = core.value(id)
-            context.add(id, value)
-            return core.valueDeclaration(value)
-        } else {
-            mustHaveNumber(existingRelation.kind, 1, { at: id })
-            
-            context.addStatement(core.filledRelation(existingRelation, [id]), true)
-            value = core.value(id)
-            context.add(id, value)
-            return core.valueDeclaration(value)
-        }
+        context.addStatement(core.filledRelation(relation, [id]), true)
+        value = core.value(id)
+        context.add(id, value)
+        return core.valueDeclaration(value)
     }
     
-    DataDecl_relationDecl(id, _colon1, args, _colon2, statement) {
+    RelationDecl(id, _colon1, args, _colon2, statement) {
       mustNotAlreadyBeDeclared(id.sourceString, { at: id })
       id = id.sourceString
       
@@ -403,7 +352,7 @@ export default function analyze(match) {
       return value
     }
     
-    DataDecl_operationDecl(_op, id, _colon1, args, _colon2, statement) {
+    OperationDecl(_op, id, _colon1, args, _colon2, statement) {
       mustNotAlreadyBeDeclared(id.sourceString, { at: id })
       id = id.sourceString
       
@@ -432,7 +381,7 @@ export default function analyze(match) {
       return statement
     }
     
-    DataDecl_propertyDecl(_prop, id, _colon1, args, _colon2, statement) {
+    PropertyDecl(_prop, id, _colon1, args, _colon2, statement) {
       mustNotAlreadyBeDeclared(id.sourceString, { at: id })
       id = id.sourceString
       
@@ -469,7 +418,7 @@ export default function analyze(match) {
       return Number(number.sourceString)
     }
     
-    DataDecl_statementDecl(id, _colon, body) {
+    StatementDecl(id, _colon, body) {
       body = body.rep()
       mustBeStatement(body, { at: id } )
       mustNotAlreadyBeDeclared(id.sourceString, { at: id })
@@ -480,7 +429,7 @@ export default function analyze(match) {
       return core.statementDeclaration(named)
     }
     
-    DataDecl_infixDecl(_infix, id, operation) {
+    InfixDecl(_infix, id, operation) {
       mustNotAlreadyBeDeclared(id.sourceString, { at: id })
       id = id.sourceString
       
@@ -489,7 +438,7 @@ export default function analyze(match) {
       return core.infixDeclaration(infix)
     }
     
-    DataDecl_assume(_assume, id, truth, _colon, body) {
+    Assume(_assume, id, truth, _colon, body) {
       mustBeBoolean(truth, { at: body })
       statement = body.rep()
       context.addStatement(statement, truth)
@@ -504,14 +453,73 @@ export default function analyze(match) {
       }
     }
     
-    Statement_equality(v1, _equals, v2) {
-      
-      mustBeValue(v1, { at: v1 } )
-      return core.equalityStatement(v1, v2)
+    Equality(v1, _equals, v2) {
+      return core.equalityStatement(v1.rep(), v2.rep())
     }
-    Statement_filledInfix(s1, infix, s2) {
+    FilledInfix(s1, inf, s2) {
+      statement1 = s1.rep()
+      statement2 = s2.rep()
+      infix = inf.rep()
+      return core.filledOperation(infix?.operation, [statement1, statement2])
+    }
+    FilledOperation(id, _leftBracket, statements, _rightBracket) {
+      operation = id.rep()
+      statementsRep = statements.rep()
+      return core.filledOperation(operation, statementsRep)
+    }
+    FilledRelation(id, _leftBracket, values, _rightBracket) {
+      relation = id.rep()
+      valuesRep = values.rep()
+      return core.filledRelation(relation, valuesRep)
+    }
+    FilledProperty(id, _leftBracket, relations, _rightBracket) {
+      property = id.rep()
+      relationsRep = relations.rep()
+      return core.filledProperty(property, relationsRep)
+    }
+    
+    DeclaredStatement(s) {
+      statement = context.lookup(s.sourceString)
+      mustBeStatement(statement, { at: s } )
+      return statement
+    }
+    Relation(r) {
+      relation = context.lookup(r.sourceString)
+      mustBeTypeT(relation?.kind, "RelationType", { at: r } )
+      return relation
+    }
+    Operation(o) {
+      operation = context.lookup(o.sourceString)
+      mustBeTypeT(operation?.kind, "OperationType", { at: o } )
+      return operation
+    }
+    Property(p) {
+      property = context.lookup(p.sourceString)
+      mustBeTypeT(property?.kind, "PropertyType", { at: p } )
+      return property
+    }
+    Value(v) {
+      value = context.lookup(v.sourceString)
+      mustBeTypeT(value, "Value", { at: v } )
+      return value
+    }
+    Infix(i) {
+      infix = context.lookup(i.sourceString)
+      mustBeTypeT(infix, "Infix", { at: i } )
+      return infix
+    }
+    
+    TypeParam(_leftAngle, types, 
+    IdAndSuperClass(id, superClass) {
+      mustNotBeAlreadyDeclared(id.sourceString, { at: id })
+      id = id.sourceString
+      
+      superClasss = context.lookup(superClass.sourceString)
+      mustBeTypeT(superClasss, "Classs", { at: superClass })
+      
       
     }
+    StructDecl(_struct, id, typeParameters, 
   });
 
 

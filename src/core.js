@@ -49,6 +49,7 @@ export function classImpl(type, superClass, fieldsMap, modules) {
   return { kind: "ClassImpl", type, superClass, fieldsMap, modules }
 }
 
+
 export function fieldMapping(field1, field2) {
   return { kind: "FieldMapping", field1, field2 }
 }
@@ -61,12 +62,16 @@ export function parameter(name, mutable, type) {
   return { kind: "Parameter", name, mutable, type }
 }
 
+// This will be key and value respectively for us to get classes for each type from locals
+export function typeKey(type) {
+  return { kind: "TypeKey", type }
+}
+export function classImplList(type) {
+  return { kind: "ClassImplList", type, new Set() }
+}
+
 
 // DATA
-// True statements - really, relations between values - must be local
-export function relationTruths() {
-  return { kind: "RelationTruths", values: new Set() }
-}
 
 
 export function value(name) {
@@ -248,6 +253,23 @@ export function matchConditionType(typeToMatch) {
 }
 
 
+// Standard operations
+export function andStatement(s1, s2) {
+  return { kind: "AndStatement", statement: true, s1, s2 }
+}
+const andOp = operation("and1234567890", ["A","B"], andStatement("A","B"))
+
+export function orStatement(s1, s2) {
+  return { kind: "OrStatement", statement: true, s1, s2 }
+}
+const orOp = operation("or1234567890", ["A","B"], orStatement("A","B"))
+
+export function equalStatement(s1, s2) {
+  return { kind: "equalStatement", statement: true, s1, s2 }
+}
+const equalOp = operation("equal1234567890", ["A","B"], equalStatement("A","B"))
+
+
 
 
 const anyToVoidType = moduleType([anyType], voidType)
@@ -259,6 +281,9 @@ export const standardLibrary = Object.freeze({
   void: voidType,
   any: anyType,
   //print: intrinsicFunction("print", anyToVoidType),
+  "and": andOp,
+  "or": orOp,
+  "==": equalOp,
 })
 
 String.prototype.type = stringType
