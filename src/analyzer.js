@@ -455,7 +455,7 @@ export default function analyze(match) {
 
     RelationDecl(id, _colon1, args, _colon2, statement) {
       mustNotAlreadyBeDeclared(id.sourceString, { at: id });
-      idStr = id.sourceString;
+      let idStr = id.sourceString;
 
       const relation = core.relation(idStr, args, null);
       // Add immediately so that we can have recursion
@@ -479,9 +479,9 @@ export default function analyze(match) {
 
     ArgValue(id) {
       mustNotAlreadyBeDeclared(id.sourceString, { at: id });
-      idStr = id.sourceString;
+      let idStr = id.sourceString;
 
-      value = core.value(idStr);
+      let value = core.value(idStr);
       context.add(idStr, value);
       return value;
     },
@@ -514,7 +514,7 @@ export default function analyze(match) {
       mustNotAlreadyBeDeclared(id.sourceString, { at: id });
       id = id.sourceString;
 
-      statement = core.statement(id, null);
+      let statement = core.statement(id, null);
       context.add(id, statement);
       return statement;
     },
@@ -545,11 +545,11 @@ export default function analyze(match) {
 
     ArgRelation(id, numbering) {
       mustNotAlreadyBeDeclared(id.sourceString, { at: id });
-      id = id.sourceString;
+      let id = id.sourceString;
 
-      number = numbering.rep();
+      let number = numbering.rep();
 
-      relation = core.relation(id, new Array(number), null);
+      let relation = core.relation(id, new Array(number), null);
       context.add(id, relation);
       return relation;
     },
@@ -561,22 +561,22 @@ export default function analyze(match) {
     },
 
     StatementDecl(id, _colon, body) {
-      body = body.rep();
+      let body = body.rep();
       mustBeStatement(body, { at: id });
       mustNotAlreadyBeDeclared(id.sourceString, { at: id });
-      id = id.sourceString;
+      let id1 = id.sourceString;
 
-      const named = core.statement(id, body);
-      context.add(id, named);
+      const named = core.statement(id1, body);
+      context.add(id1, named);
       return core.statementDeclaration(named);
     },
 
     InfixDecl(_infix, id, operation) {
       mustNotAlreadyBeDeclared(id.sourceString, { at: id });
-      id = id.sourceString;
+      let id1 = id.sourceString;
 
-      const infix = core.infix(id, operation);
-      context.add(id, infix);
+      const infix = core.infix(id1, operation);
+      context.add(id1, infix);
       return core.infixDeclaration(infix);
     },
 
