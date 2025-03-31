@@ -13,12 +13,16 @@ export function assignment(variable, assignable) {
   return { kind: "Assignment", variable, assignable }
 }
 
-export function variableDeclaration(variable, initializer) {
-  return { kind: "VariableDeclaration", variable, initializer };
+export function returnType(mutable, type) {
+  return { kind: "ReturnType", mutable, type }
 }
 
-export function variable(name, mutable, type) {
-  return { kind: "Variable", name, mutable, type }
+export function variableDeclaration(variable) {
+  return { kind: "VariableDeclaration", variable };
+}
+
+export function variable(name, type, contents) { // always mutable
+  return { kind: "Variable", name, type, contents }
 }
 
 export function typeParameter(name) {
@@ -220,8 +224,8 @@ export const breakLine = { kind: "Break" }
 export const continueLine = { kind: "Continue"}
 
 // Variable constructors
-export function constructor(filledStruct, assignables) {
-  return { kind: "Struct", filledStruct, assignables, type: filledStruct.type }
+export function construct(filledStruct, assignables) {
+  return { kind: "Struct", assignables, type: filledStruct }
 }
 
 export function methodCall(variable, method, assignable) {
