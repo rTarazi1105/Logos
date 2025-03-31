@@ -10,7 +10,7 @@
     "test": "test"
   },
   "scripts": {
-    "test": "c8 node --test test/**/*.test.js"
+    "test": "node --test"
   },
   "repository": {
     "type": "git",
