@@ -64,11 +64,10 @@ Logos {
 	EnumDecl = "enum" id2 TypeParam? "{" ListOf<Param, ","> "}"
 	
 	ModDecl = "mod" id2 ModHead ModBody
-	ModHead = TypeParam? "(" ListOf<ModParam, ","> ")" ReturnType?
+	ModHead = TypeParam? "(" ListOf<ModParamWithSelf, ","> ")" ReturnType?
 	// OptModParams = ListOf<ModParam, ",">
 	
-	MethodDecl = "mod" Struct "." id2 MethodHead ModBody
-	MethodHead = TypeParam? "(" ListOf<ModParamWithSelf, ","> ")" ReturnType?
+	MethodDecl = "mod" FilledStruct "." id2 ModHead ModBody
 	ModParamWithSelf = ModParam | SelfParam
 	
 	ReturnType = "->" Mutable? ValidType
@@ -80,7 +79,7 @@ Logos {
 		= ClassField
 		| ClassMod
 	ClassField = Param ","
-	ClassMod = "mod" id2 MethodHead ModBodyOrColon
+	ClassMod = "mod" id2 ModHead ModBodyOrColon
 	ModBodyOrColon = ModBody | ";"
 	
 	ClassImpl = ValidType "impl" FilledClass ClassImplBody
@@ -107,8 +106,8 @@ Logos {
 		| NumberedRelation
 		| ArrayType
 		| FilledClass
-		| Struct
-		| Enum
+		| FilledStruct
+		| FilledEnum
 	FilledClass = DeclaredClass FilledTypeParams?
 	NumberedRelation = "relation" Numbering?
 	DefaultValidType
@@ -131,6 +130,8 @@ Logos {
 		| Increment | Decrement
 		| Return
 		| ControlFlow
+		| "break"
+		| "continue"
 		| MethodCall
 		| ModCall
 	MethodCall = Variable "." Method Call
@@ -139,7 +140,7 @@ Logos {
 	
 	Assignment = Variable "=" Assignable
 	Assignable = Construct | Literal | ControlFlow | Array | Variable
-	Construct = Struct "{" ListOf<Assignable, ","> "}"
+	Construct = FilledStruct "{" ListOf<Assignable, ","> "}"
 	Increment = Variable "++"
 	Decrement = Variable "--"
 	
@@ -165,15 +166,13 @@ Logos {
 	InEqualities = Assignable InEqual Assignable
 	InEqual = "<" | ">" | "==" | "!="
 	
-	ControlFlow = IfFlow | MatchFlow | LoopFlow
-	LoopFlow = ForFlow | WhileFlow
-	LoopAction = "{" (Action | "break" | "continue")* "}"
+	ControlFlow = IfFlow | MatchFlow | ForFlow | WhileFlow
 	IfFlow = "if" EvalBool "then" Action Else?
 	Else = "else" Action
-	ForFlow = "for" Arg "in" Collection "do" LoopAction
+	ForFlow = "for" Arg "in" Collection "do" Action
 	Arg = id2
 	Collection = Array | Variable
-	WhileFlow = "while" EvalBool "do" LoopAction
+	WhileFlow = "while" EvalBool "do" Action
 	MatchFlow = "match" Variable ":" ListOf<MatchLine, ",">
 	MatchLine = MatchStart "=>" Action
 	MatchStart
@@ -245,17 +244,21 @@ Logos {
 		| "class"
 		| "impl"
 	
+	
+	
 	DeclaredStatement = Variable | id1
 	Relation = Variable | id1
 	Operation = Variable | id2
 	UserDefinedInfix = id2
 	Property = Variable | id1
 	Value = Variable | id1
+	FilledStruct = Struct FilledTypeParams?
 	Struct = id2
 	DeclaredClass = Class | "Error" | "Comparable" | "Equatable" | "Collection"
 	Class = id2
 	Method = id2
 	Mod = id2
+	FilledEnum = Enum FilledTypeParams?
 	Enum = id2
 	AssignedVariable = id2
 	Field = id2 | number

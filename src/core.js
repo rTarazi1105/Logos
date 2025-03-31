@@ -13,10 +13,6 @@ export function assignment(variable, assignable) {
   return { kind: "Assignment", variable, assignable }
 }
 
-export function variableDeclaration(variable, initializer) {
-  return { kind: "VariableDeclaration", variable, initializer };
-}
-
 export function variable(name, mutable, type) {
   return { kind: "Variable", name, mutable, type }
 }
@@ -26,7 +22,7 @@ export function typeParameter(name) {
 }
 
 export function struct(name, typeParams, fields) {	// auto-impl superclasses
-  return { kind: "Struct", name, typeParams, fields }
+  return { kind: "Struct", name, typeParams, fields, methods: [] }
 }
 
 export function enumeration(name, typeParams, cases) { // cases are like fields
@@ -37,37 +33,42 @@ export function moduleType(paramsMut, paramTypes, returnType) {
   return { kind: "ModuleType", paramsMut, paramTypes, returnType }
 }
 
-export function module(name, params, returnType, body) {
-  return {
-    kind: "Module",
-    name,
-    params,
-    body,
+export function module(name, typeParams, params, returnType, body) {
+  return { 
+    kind: "Module", 
+    name, 
+    typeParams,
+    params, 
+    body, 
     type: moduleType(
-      (params || []).map((p) => p.mutable),
-      (params || []).map((p) => p.type),
+      params.map(p => p.mutable),
+      params.map(p => p.type),
       returnType
-    ),
-  };
+    )
+  }
 }
 
-export function method(name, struct, params, returnType, body) {
-  return {
-    kind: "Method",
-    name,
-    struct,
-    params,
-    body,
-    type: moduleType(
-      (params || []).map((p) => p.mutable),
-      (params || []).map((p) => p.type),
-      returnType
-    ),
-  };
+export function filledStruct(struct, filledTypeParams) {
+  return { kind: "FilledStruct", struct, filledTypeParams }
+}
+export function filledEnum(enumeration, filledTypeParams) {
+  return { kind: "FilledEnum", enumeration, filledTypeParams }
 }
 
-export function classFilledWithParam(classs, filledTypeParams) {
+export function filledClass(classs, filledTypeParams) {
   return { kind: "FilledClass", classs, filledTypeParams }
+}
+// Used for organizing methods
+export function getTypeName(userDefinedType) {
+  if userDefinedType.kind === "FilledClass"
+    string = filledClass.classs.name + "<"
+    for p in filledClass.filledTypeParams {
+      string = string + stringify(p) // should be struct, enum or class
+    }
+    
+  else {
+    return userDefinedType.name
+  }
 }
 
 export function classs(name, typeParams, fields, modules) {	// auto-impl "
@@ -79,8 +80,8 @@ export function classImpl(type, classs, fieldsMap, modules) {
 }
 	// Elements
 
-export function fieldMapping(field1, field2) {
-  return { kind: "FieldMapping", field1, field2 }
+export function fieldMapping(name, nameInType, type) { // first name is in class
+  return { kind: "FieldMapping", name, nameInType, type }
 }
 
 export function field(name, type) {	// or param
@@ -101,13 +102,12 @@ export function enumDeclaration(enumeration) {
 export function moduleDeclaration(module) {
   return { kind: "ModuleDeclaration", module }
 }
-export function methodDeclaration(method) {
-  return { kind: "MethodDeclaration", method }
+export function methodDeclaration(struct, module) {
+  return { kind: "MethodDeclaration", struct, module }
 }
 export function classDeclaration(classs) {
   return { kind: "ClassDeclaration", classs }
 }
-
 
 // DATA
 
@@ -217,8 +217,8 @@ export const breakLine = { kind: "Break" }
 export const continueLine = { kind: "Continue"}
 
 // Variable constructors
-export function constructor(struct, assignables) {
-  return { kind: "Struct", struct, assignables, type: struct.type }
+export function constructor(filledStruct, assignables) {
+  return { kind: "Struct", filledStruct, assignables, type: filledStruct.type }
 }
 
 export function methodCall(variable, method, assignable) {
@@ -248,8 +248,8 @@ export function orVariable(bool1, bool2) {
 export function varField(variable, field) {	// includes list indices
   return { kind: "VarField", variable, field, type: field.type }
 }
-export function enumCase(enumeration, field) {
-  return { kind: "EnumCase", enumeration, field, type: field.type }
+export function enumCase(filledEnum, field) {
+  return { kind: "EnumCase", filledEnum, field, type: field.type }
 }
 
 	// Collections
@@ -318,7 +318,7 @@ const equalOp = operation("equal1234567890", ["A","B"], equalStatement("A","B"))
       ],
       [module(
         "print", 
-        [parameter("message", false, stringType)],
+        parameter("message", false, stringType),
         voidType,
         null
       )]
@@ -360,7 +360,7 @@ const equalOp = operation("equal1234567890", ["A","B"], equalStatement("A","B"))
       [module(
         "cmp",
         [parameter("self", false, null), parameter("other", false, null)],
-        orderingEnum,
+        filledEnum(orderingEnum,[]),
         null
       )]
     );
@@ -391,16 +391,15 @@ export const standardLibrary = Object.freeze({
   void: voidType,
   any: anyType,
   //print: intrinsicFunction("print", anyToVoidType),
-  π: variable("π", false, intType),
-  and: andOp,
-  or: orOp,
+  "and": andOp,
+  "or": orOp,
   "==": equalOp,
-  Error: errorClass,
-  Ordering: orderingEnum,
-  Comparable: comparableClass,
-  Equatable: equatableClass,
-  Collection: collectionClass,
-});
+  "Error": errorClass,
+  "Ordering": orderingEnum,
+  "Comparable": comparableClass,
+  "Equatable": equatableClass,
+  "Collection": collectionClass,
+})
 
 String.prototype.type = stringType
 BigInt.prototype.type = intType
