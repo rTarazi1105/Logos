@@ -143,7 +143,14 @@ mod Axioms {
 }
 ```
 **Collaborators:**
-Rayane Tarazi, Daniel Munoz, Akash Beh, Nick Aurino
+### Rayane Tarazi 
+A computer science enthusiast and gamer, always wanting to explore more about AI and leveling up both in code and in games. 😎	
+### Daniel Munoz 
+Loves coding and cats. 🐈‍⬛
+### Akash Beh 
+A linux enthusiast who loves to einstein bagels, minecraft, and math.
+### Nick Aurino
+A computer enthusiast who enjoys anime and manga the most but also really love gaming. 
 
 **Repo Link:**
-https://github.com/rTarazi1105/Logos.git
+[Github Pages Hosting](https://rtarazi1105.github.io/Logos/)
