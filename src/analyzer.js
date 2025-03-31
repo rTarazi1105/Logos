@@ -429,7 +429,7 @@ export default function analyze(match) {
       assignablesRep = assignables.asIteration().children.map(a => a.rep())
       mustHaveLength(assignablesRep, filledStructRep.struct.fields.length)
       return core.construct(filledStructRep, assignablesRep)
-    }
+    },
     
     
 
@@ -1152,12 +1152,12 @@ export default function analyze(match) {
       exprRep = expr.rep();
       mustBeObject(exprRep, { at: id});
       const variable = context.lookup(idStr);
-      if variable == null {
+      if (variable == null) {
         newVar = core.variable(idStr, exprRep.type, exprRep);
         context.add(idStr,newVar);
         return core.variableDeclaration(newVar);
       } else {
-        if variable.type !== exprRep.type {
+        if (variable.type !== exprRep.type) {
           newVar = core.variable(idStr, exprRep.type, exprRep);
           context.add(idStr, newVar);
           return core.variableDeclaration(newVar);
