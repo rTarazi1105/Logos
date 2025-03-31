@@ -25,24 +25,45 @@ export function typeParameter(name) {
   return { kind: "TypeParameter", name, classes: new Set() }
 }
 
-export function struct(name, fields) {	// auto-impl superclasses
-  return { kind: "Struct", name, fields }
+export function struct(name, typeParams, fields) {	// auto-impl superclasses
+  return { kind: "Struct", name, typeParams, fields }
 }
 
-export function enumeration(name, cases) { // cases are like fields
-  return { kind: "Enum", name, cases }
+export function enumeration(name, typeParams, cases) { // cases are like fields
+  return { kind: "Enum", name, typeParams, cases }
 }
 
-export function moduleType(paramTypes, returnType) {
-  return { kind: "ModuleType", paramTypes, returnType }
+export function moduleType(paramsMut, paramTypes, returnType) {
+  return { kind: "ModuleType", paramsMut, paramTypes, returnType }
 }
 
 export function module(name, params, returnType, body) {
-  return { kind: "Module", name, params, returnType, body }
+  return { 
+    kind: "Module", 
+    name, 
+    params, 
+    body, 
+    type: moduleType(
+      params.map(p => p.mutable),
+      params.map(p => p.type),
+      returnType
+    )
+  }
 }
 
 export function method(name, struct, params, returnType, body) {
-  return { kind: "Method", name, struct, params, returnType, body }
+  return { 
+    kind: "Method", 
+    name, 
+    struct, 
+    params, 
+    body, 
+    type: moduleType(
+      params.map(p => p.mutable),
+      params.map(p => p.type),
+      returnType
+    )
+  }
 }
 
 export function classFilledWithParam(classs, filledTypeParams) {
@@ -53,8 +74,8 @@ export function classs(name, typeParams, fields, modules) {	// auto-impl "
   return { kind: "Classs", name, typeParams, fields, modules }
 }
 
-export function classImpl(type, superClass, fieldsMap, modules) {
-  return { kind: "ClassImpl", type, superClass, fieldsMap, modules }
+export function classImpl(type, classs, fieldsMap, modules) {
+  return { kind: "ClassImpl", type, classs, fieldsMap, modules }
 }
 	// Elements
 
@@ -327,7 +348,7 @@ const equalOp = operation("equal1234567890", ["A","B"], equalStatement("A","B"))
     collectionClass.modules[0].params[0].type = collectionClass;
     collectionClass.modules[1].params[0].type = collectionClass;
     
-    const orderingEnum = enumeration("Ordering", [
+    const orderingEnum = enumeration("Ordering", [], [
       field("LessThan", voidType), 
       field("EqualTo", voidType), 
       field("GreaterThan", voidType)
