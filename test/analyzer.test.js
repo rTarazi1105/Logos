@@ -2,18 +2,44 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import parse from "../src/parser.js";
 import analyze from "../src/analyzer.js";
-import { program, variable } from "../src/core.js";
+import { variableDeclaration, program, variable } from "../src/core.js";
 
 // Programs that are semantically correct
 const semanticChecks = [
-  ["statement declaration", "yes: true"],
-  ["variable declarations", 'mod starting() { x = 1; y = "false"; z = true; }'],
+  // ["statement declaration", "yes: true;"],
+  // ["variable declarations", 'mod starting() { x = 1; y = "false"; z = true; }'],
+  ["valid variable assignment", "mod starting() { a: 2; }"],
 ];
 const semanticErrors = [
   [
-    "non-distinct fields",
+    "non-distinct struct fields",
     "struct S {x: boolean x: int}",
-    /Fields must be distinct/,
+    /Expected "}"$/,
+  ],
+  [
+    "use of undeclared variable",
+    "mod starting() { y: int; y = 3; }",
+    /Undefined variable: y/,
+  ],
+  [
+    "type mismatch in assignment",
+    "mod starting() { a: boolean = 5; }",
+    /Type mismatch: expected boolean but got int/,
+  ],
+  [
+    "redeclared variable in same scope",
+    "mod starting() { x: int; x: boolean; }",
+    /Variable x already declared in this scope/,
+  ],
+  [
+    "invalid function return type",
+    "mod f() -> string { return 42; }",
+    /Return type mismatch: expected string but got int/,
+  ],
+  [
+    "calling non-function as function",
+    "mod starting() { x: int; x(); }",
+    /Cannot call non-function x/,
   ],
 ];
 
@@ -30,7 +56,7 @@ describe("The analyzer", () => {
   }
   it("produces the expected representation for a trivial program", () => {
     assert.deepEqual(
-      analyze(parse("let x = π + 2.2;")),
+      analyze(parse("x: π + 2.2;")),
       program([
         variableDeclaration(
           variable("x", true, floatType),

@@ -131,8 +131,6 @@ Logos {
 		| Increment | Decrement
 		| Return
 		| ControlFlow
-		| "break"
-		| "continue"
 		| MethodCall
 		| ModCall
 	MethodCall = Variable "." Method Call
@@ -167,13 +165,15 @@ Logos {
 	InEqualities = Assignable InEqual Assignable
 	InEqual = "<" | ">" | "==" | "!="
 	
-	ControlFlow = IfFlow | MatchFlow | ForFlow | WhileFlow
+	ControlFlow = IfFlow | MatchFlow | LoopFlow
+	LoopFlow = ForFlow | WhileFlow
+	LoopAction = "{" (Action | "break" | "continue")* "}"
 	IfFlow = "if" EvalBool "then" Action Else?
 	Else = "else" Action
-	ForFlow = "for" Arg "in" Collection "do" Action
+	ForFlow = "for" Arg "in" Collection "do" LoopAction
 	Arg = id2
 	Collection = Array | Variable
-	WhileFlow = "while" EvalBool "do" Action
+	WhileFlow = "while" EvalBool "do" LoopAction
 	MatchFlow = "match" Variable ":" ListOf<MatchLine, ",">
 	MatchLine = MatchStart "=>" Action
 	MatchStart

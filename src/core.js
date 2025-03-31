@@ -13,6 +13,10 @@ export function assignment(variable, assignable) {
   return { kind: "Assignment", variable, assignable }
 }
 
+export function variableDeclaration(variable, initializer) {
+  return { kind: "VariableDeclaration", variable, initializer };
+}
+
 export function variable(name, mutable, type) {
   return { kind: "Variable", name, mutable, type }
 }
@@ -366,15 +370,16 @@ export const standardLibrary = Object.freeze({
   void: voidType,
   any: anyType,
   //print: intrinsicFunction("print", anyToVoidType),
-  "and": andOp,
-  "or": orOp,
+  π: variable("π", false, intType),
+  and: andOp,
+  or: orOp,
   "==": equalOp,
-  "Error": errorClass,
-  "Ordering": orderingEnum,
-  "Comparable": comparableClass,
-  "Equatable": equatableClass,
-  "Collection": collectionClass,
-})
+  Error: errorClass,
+  Ordering: orderingEnum,
+  Comparable: comparableClass,
+  Equatable: equatableClass,
+  Collection: collectionClass,
+});
 
 String.prototype.type = stringType
 BigInt.prototype.type = intType
