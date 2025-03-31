@@ -6,7 +6,6 @@ class Context {
   }
   // Default will be Key: String, value: T
   // For truths, key: statement, value: bool
-  // For classes, 
   add(name, entity) {
     this.locals.set(name, entity)
   }
@@ -265,15 +264,15 @@ export default function analyze(match) {
     must(moduleNames.size === classs.modules.length, "Fields must be distinct", at)
   }
   
-  function checkFieldMap(struct, classs) {
-    return classs.fields.every(
+  function checkFieldMap(fields1, fields2) {
+    return fields2.every(
       (field, _i) =>
-        struct.fields.find(field)?.type === field.type
+        fields1.find(field)?.type === field.type
     )
   }
   
   function mustMapFields(struct, classs, at) {
-    must(checkFieldMap(struct, classs), "Fields do not map", at)
+    must(checkFieldMap(struct.fields, classs.fields), "Fields do not map", at)
   }
 
   function mustHaveMember(structOrEnumType, field, at) {
@@ -333,28 +332,28 @@ export default function analyze(match) {
     },
     
     // Data
-    ValueDecl(_value, id, relationId) {
-        mustNotAlreadyBeDeclared(id.sourceString, { at: id })
-        mustHaveBeenFound(relationId.sourceString, { at: relationId })
-        id = id.sourceString
-        relationId = relationId.sourceString
+    ValueDecl(_value, id, _colon, relationId) {
+        idStr = id.sourceString
+        mustNotAlreadyBeDeclared(idStr, { at: id })
+        value = core.value(idStr)
+        context.add(idStr, value)
         
-        relation = context.lookup(relationId);
-        mustHaveNumber(relation.kind, 1, { at: id })
+        if relationId != null {
+          relation = relationId.rep()
+          mustHaveNumber(relation.kind, 1, { at: id })
+          context.addStatement(core.filledRelation(relation, [value]), true)
+        }
             
-        context.addStatement(core.filledRelation(relation, [id]), true)
-        value = core.value(id)
-        context.add(id, value)
         return core.valueDeclaration(value)
     },
     
     RelationDecl(id, _colon1, args, _colon2, statement) {
       mustNotAlreadyBeDeclared(id.sourceString, { at: id })
-      id = id.sourceString
+      idStr = id.sourceString
       
-      const relation = core.relation(id, args, null)
+      const relation = core.relation(idStr, args, null)
       // Add immediately so that we can have recursion
-      context.add(id, relation)
+      context.add(idStr, relation)
       
       // Parameters are part of the child context
       context = context.newChildContext({ inLoop: false, inData: true, module: relation })
@@ -370,10 +369,10 @@ export default function analyze(match) {
     
     ArgValue(id) {
       mustNotAlreadyBeDeclared(id.sourceString, { at: id })
-      id = id.sourceString
+      idStr = id.sourceString
     
-      value = core.value(id)
-      context.add(value)
+      value = core.value(idStr)
+      context.add(idStr, value)
       return value
     },
     
@@ -402,7 +401,7 @@ export default function analyze(match) {
       id = id.sourceString
     
       statement = core.statement(id, null)
-      context.add(statement)
+      context.add(id, statement)
       return statement
     },
     
@@ -433,7 +432,7 @@ export default function analyze(match) {
       number = numbering.rep()
     
       relation = core.relation(id, new Array(number), null)
-      context.add(relation)
+      context.add(id, relation)
       return relation
     },
     
@@ -691,7 +690,7 @@ export default function analyze(match) {
         context.add(typeParam.name, typeParam)
       }
       
-      for line in classBody.children.map(l => l.rep()) {
+      for line in classBody.rep() {
         if line.kind === "Field" {
           classs.fields.push(line)
         } else if line.kind === "Module" {
@@ -714,7 +713,7 @@ export default function analyze(match) {
     ClassImpl(type, _impl, classs, body) {
       fields = []
       modules = []
-      for line in body.children.map(l => l.rep()).{
+      for line in body.rep().{
         if line.kind === "Field" {
           classs.fields.push(line)
         } else if line.kind === "Module" {
@@ -723,6 +722,18 @@ export default function analyze(match) {
           must(false, "Expected field or module in impl", { at: id })
         }
       }
+      //impl = classImpl(type, classs, 
+      //mustHaveModules(
+      
+      context.classify(type, classs)
+    }
+    
+    ClassBody(_left, lines, _right) {
+      return lines.children.map(l => l.rep())
+    }
+    
+    ClassImplBody(_left, lines, _right) {
+      return lines.children.map(l => l.rep())
     }
   });
 

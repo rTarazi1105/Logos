@@ -70,8 +70,8 @@ export function classs(name, typeParams, fields, modules) {	// auto-impl "
   return { kind: "Classs", name, typeParams, fields, modules }
 }
 
-export function classImpl(type, superClass, fieldsMap, modules) {
-  return { kind: "ClassImpl", type, superClass, fieldsMap, modules }
+export function classImpl(type, classs, fieldsMap, modules) {
+  return { kind: "ClassImpl", type, classs, fieldsMap, modules }
 }
 	// Elements
 
