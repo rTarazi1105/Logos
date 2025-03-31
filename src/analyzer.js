@@ -214,7 +214,7 @@ export default function analyze(match) {
   }
 
   // ValidType in Ohm
-  function mustBeAType(e, at) {
+  function mustBeObject(e, at) {
     const isPrimitiveType = /int|bool|void|any/.test(e);
     const isDataType = /Value|Infix|Statement|Assumption/.test(e);
     const isNumberedDataType = /RelationType|OperationType|PropertyType/.test(
@@ -223,8 +223,9 @@ export default function analyze(match) {
     const isCompositeType = /Struct|Enum|ArrayType|TupleType|TypeParam/.test(
       e?.kind
     );
+    const isControlFlow = /IfFlow|ForFlow|WhileFlow|MatchFlow/.test(e?.kind);
     must(
-      isPrimitiveType || isDataType || isNumberedDataType || isCompositeType,
+      isPrimitiveType || isDataType || isNumberedDataType || isCompositeType || isControlFlow,
       "Type expected",
       at
     );
@@ -270,20 +271,17 @@ export default function analyze(match) {
     must(e?.length === n, "Incorrect length", at);
   }
 
+  // TODO: Error: ModCall return type can be mutable, but shouldn't be
   function isMutable(e) {
     return (
       (e?.kind === "Variable" && e?.mutable) ||
       (e?.kind === "VarField" && isMutable(e?.variable)) ||
-      (e?.kind === "MemberExpression" && isMutable(e?.object))
+      (e?.kind === "MethodCall" && isMutable(e?.object))
     );
   }
 
   function mustBeMutable(e, at) {
     must(isMutable(e), "Cannot assign to immutable variable", at);
-  }
-
-  function assignable(fromType, toType) {
-    return toType == core.anyType || equivalent(fromType, toType);
   }
 
   function typeDescription(type) {
@@ -424,66 +422,16 @@ export default function analyze(match) {
     Program(sections) {
       return core.program(sections.children.map((s) => s.rep()));
     },
-
-    // Actions
-
-    ActionLine(action, _semicolon) {
-      return action.rep();
-    },
-
-    Assignment(id, _eq, expr) {
-      mustNotAlreadyBeDeclared(id.sourceString, { at: id });
-      const variable = context.lookup(id.sourceString);
-      mustBeAssignable(expr.rep(), { toType: variable.type }, { at: id });
-      return core.assignment(variable, expr.rep());
-    },
-
-    MethodCall(id, _dot, id2, _rp) {
-      const method = context.lookup(id.sourceString);
-      mustBeCallable(method, { at: id });
-      mustHaveCorrectArgumentCount(args.children.length, method.params.length, {
-        at: id,
-      });
-      args.children.forEach((arg, i) => {
-        mustBeAssignable(
-          arg.rep(),
-          { toType: method.params[i].type },
-          { at: arg }
-        );
-      });
-      return core.methodCall(
-        method,
-        args.children.map((arg) => arg.rep())
-      );
-    },
-
-    ModCall(id, expr) {
-      const module = context.lookup(id.sourceString);
-      must(module?.kind === "Module", "Expected a module", { at: id });
-      const methodCall = MethodCall();
-      return core.modCall(module, methodCall);
-    },
-
-    Return(_return, _yield, expr) {
-      mustBeInAFunction({ at: _return });
-      const functionContext = context.module;
-      mustBeReturnable(expr.rep(), { from: functionContext }, { at: expr });
-      return core.returnLine(expr.rep());
-    },
-
-    Increment(id, _plus) {
-      const variable = context.lookup(id.sourceString);
-      mustBeInteger(variable, { at: id });
-      mustBeMutable(variable, { at: id });
-      return core.incrementVar(variable);
-    },
-
-    Decrement(id, _minus) {
-      const variable = context.lookup(id.sourceString);
-      mustBeInteger(variable, { at: id });
-      mustBeMutable(variable, { at: id });
-      return core.decrementVar(variable);
-    },
+    
+    // Assignables
+    Construct(filledStruct, _brack1, assignables, _brack2) {
+      filledStructRep = filledStruct.rep()
+      assignablesRep = assignables.asIteration().children.map(a => a.rep())
+      mustHaveLength(assignablesRep, filledStructRep.struct.fields.length)
+      return core.construct(filledStructRep, assignablesRep)
+    }
+    
+    
 
     // Data
     ValueDecl(_value, id, _colon, relationId) {
@@ -1191,6 +1139,79 @@ export default function analyze(match) {
 
       context = context.parent;
       return impl;
+    },
+
+    // Actions
+
+    ActionLine(action, _semicolon) {
+      return action.rep();
+    },
+
+    Assignment(id, _eq, expr) {
+      idStr = id.sourceString;
+      exprRep = expr.rep();
+      mustBeObject(exprRep, { at: id});
+      const variable = context.lookup(idStr);
+      if variable == null {
+        newVar = core.variable(idStr, exprRep.type, exprRep);
+        context.add(idStr,newVar);
+        return core.variableDeclaration(newVar);
+      } else {
+        if variable.type !== exprRep.type {
+          newVar = core.variable(idStr, exprRep.type, exprRep);
+          context.add(idStr, newVar);
+          return core.variableDeclaration(newVar);
+        }
+        
+        return core.assignment(variable, exprRep)
+      }
+    },
+
+    MethodCall(id, _dot, id2, _rp) {
+      const method = context.lookup(id.sourceString);
+      mustBeCallable(method, { at: id });
+      mustHaveCorrectArgumentCount(args.children.length, method.params.length, {
+        at: id,
+      });
+      args.children.forEach((arg, i) => {
+        mustBeAssignable(
+          arg.rep(),
+          { toType: method.params[i].type },
+          { at: arg }
+        );
+      });
+      return core.methodCall(
+        method,
+        args.children.map((arg) => arg.rep())
+      );
+    },
+
+    ModCall(id, expr) {
+      const module = context.lookup(id.sourceString);
+      must(module?.kind === "Module", "Expected a module", { at: id });
+      const methodCall = MethodCall();
+      return core.modCall(module, methodCall);
+    },
+
+    Return(_return, _yield, expr) {
+      mustBeInAFunction({ at: _return });
+      const functionContext = context.module;
+      mustBeReturnable(expr.rep(), { from: functionContext }, { at: expr });
+      return core.returnLine(expr.rep());
+    },
+
+    Increment(id, _plus) {
+      const variable = context.lookup(id.sourceString);
+      mustBeInteger(variable, { at: id });
+      mustBeMutable(variable, { at: id });
+      return core.incrementVar(variable);
+    },
+
+    Decrement(id, _minus) {
+      const variable = context.lookup(id.sourceString);
+      mustBeInteger(variable, { at: id });
+      mustBeMutable(variable, { at: id });
+      return core.decrementVar(variable);
     },
   });
 
