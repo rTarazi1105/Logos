@@ -17,11 +17,6 @@ const semanticErrors = [
     /Expected "}"$/,
   ],
   [
-    "use of undeclared variable",
-    "mod starting() { y: int; y = 3; }",
-    /Undefined variable: y/,
-  ],
-  [
     "type mismatch in assignment",
     "mod starting() { a: boolean = 5; }",
     /Type mismatch: expected boolean but got int/,

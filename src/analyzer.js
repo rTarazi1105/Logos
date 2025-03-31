@@ -58,11 +58,11 @@ class Context {
     this.classes.get(type).add(classs)
   }
   lookupClass(classs, type) {
-    if this.classes.get(type).has(classs) {
+    if (this.classes.get(type).has(classs)) {
       return true
     }
-    for superClass of this.classes.get(type) {
-      if lookupClass(superClass, classs) {
+    for (superClass of this.classes.get(type)) {
+      if (lookupClass(superClass, classs)) {
         return true
       }
     }
@@ -75,15 +75,15 @@ class Context {
   
   
   static root() {
-    equatableClass = core.standardLibrary["Equatable"]
-    comparableClass = core.standardLibrary["Comparable"]
+    let equatableClass = core.standardLibrary["Equatable"]
+    let comparableClass = core.standardLibrary["Comparable"]
     
     return new Context({
       locals: new Map(Object.entries(core.standardLibrary)),
       classes: new Map([
-        [core.boolType, Set([equatableClass])]
-        [core.intType, Set([comparableClass])]
-        [comparableClass, Set([equatableClass])]
+        [core.boolType, new Set([equatableClass])],
+        [core.intType, new Set([comparableClass])],
+        [comparableClass, new Set([equatableClass])]
       ])
     })
   }
@@ -296,11 +296,11 @@ export default function analyze(match) {
   }
 
   function mustHaveMember(structOrEnumType, field, at) {
-    must(structOrEnumType.fields.some(typeField => typeField.name === field.name && typeField.type === field.type , "No such field", at)
+    must(structOrEnumType.fields.some(typeField => typeField.name === field.name && typeField.type === field.type , "No such field", at))
   }
   
   function mustHaveModules(classImpl, classs, at) {
-    for (i, mod) in classs.modules.entries() {
+    for (let [i, mod] in classs.modules.entries()) {
       otherMod = classImpl.modules[i]
       must(otherMod.name === mod.name, "Mod mismatch in name", at)
       must(equivalent(mod.Type, otherMod.type), "Mod mismatch in type", at)
@@ -359,7 +359,6 @@ export default function analyze(match) {
       return core.assignment(variable, expr.rep());
     },
 
-
     MethodCall(id, _dot, id2, _rp) {
       const method = context.lookup(id.sourceString);
       mustBeCallable(method, { at: id });
@@ -379,14 +378,14 @@ export default function analyze(match) {
       );
     },
 
-    ModCall(id, _dot, method, _lp, args, _rp) {
+    ModCall(id, expr) {
       const module = context.lookup(id.sourceString);
       must(module?.kind === "Module", "Expected a module", { at: id });
-      const methodCall = MethodCall() 
+      const methodCall = MethodCall();
       return core.modCall(module, methodCall);
     },
 
-    Return(_return, expr) {
+    Return(_return, _yield, expr) {
       mustBeInAFunction({ at: _return });
       const functionContext = context.module;
       mustBeReturnable(expr.rep(), { from: functionContext }, { at: expr });
@@ -409,28 +408,51 @@ export default function analyze(match) {
 
     // Data
     ValueDecl(_value, id, _colon, relationId) {
-        idStr = id.sourceString
-        mustNotAlreadyBeDeclared(idStr, { at: id })
-        value = core.value(idStr)
-        context.add(idStr, value)
-        
-        if relationId != null {
-          relation = relationId.rep()
-          mustHaveNumber(relation.kind, 1, { at: id })
-          context.addStatement(core.filledRelation(relation, [value]), true)
-        }
-            
-        return core.valueDeclaration(value)
+      const idStr = id.sourceString;
+      mustNotAlreadyBeDeclared(idStr, { at: id });
+      const value = core.value(idStr);
+      context.add(idStr, value);
+
+      if (relationId != null) {
+        let relation = relationId.rep();
+        mustHaveNumber(relation.kind, 1, { at: id });
+        context.addStatement(core.filledRelation(relation, [value]), true);
+      }
+
+      return core.valueDeclaration(value);
+    },
+
+    ModDecl(_mod, id, _colon, body) {
+      mustNotAlreadyBeDeclared(id.sourceString, { at: id });
+      id = id.sourceString;
+
+      // Create a module object
+      const module = core.module(id, []);
+      context.add(id, module);
+
+      // Enter the module scope
+      context = context.newChildContext({
+        inLoop: false,
+        inData: false,
+        module,
+      });
+
+      // Process module body
+      module.body = body.rep();
+
+      // Exit back to the outer context
+      context = context.parent;
+      return core.moduleDeclaration(module);
     },
 
     RelationDecl(id, _colon1, args, _colon2, statement) {
-      mustNotAlreadyBeDeclared(id.sourceString, { at: id })
-      idStr = id.sourceString
-      
-      const relation = core.relation(idStr, args, null)
+      mustNotAlreadyBeDeclared(id.sourceString, { at: id });
+      idStr = id.sourceString;
+
+      const relation = core.relation(idStr, args, null);
       // Add immediately so that we can have recursion
-      context.add(idStr, relation)
-      
+      context.add(idStr, relation);
+
       // Parameters are part of the child context
       context = context.newChildContext({
         inLoop: false,
@@ -448,12 +470,12 @@ export default function analyze(match) {
     },
 
     ArgValue(id) {
-      mustNotAlreadyBeDeclared(id.sourceString, { at: id })
-      idStr = id.sourceString
-    
-      value = core.value(idStr)
-      context.add(idStr, value)
-      return value
+      mustNotAlreadyBeDeclared(id.sourceString, { at: id });
+      idStr = id.sourceString;
+
+      value = core.value(idStr);
+      context.add(idStr, value);
+      return value;
     },
 
     OperationDecl(_op, id, _colon1, args, _colon2, statement) {
@@ -481,12 +503,12 @@ export default function analyze(match) {
     },
 
     ArgStatement(id) {
-      mustNotAlreadyBeDeclared(id.sourceString, { at: id })
-      id = id.sourceString
-    
-      statement = core.statement(id, null)
-      context.add(id, statement)
-      return statement
+      mustNotAlreadyBeDeclared(id.sourceString, { at: id });
+      id = id.sourceString;
+
+      statement = core.statement(id, null);
+      context.add(id, statement);
+      return statement;
     },
 
     PropertyDecl(_prop, id, _colon1, args, _colon2, statement) {
@@ -514,14 +536,14 @@ export default function analyze(match) {
     },
 
     ArgRelation(id, numbering) {
-      mustNotAlreadyBeDeclared(id.sourceString, { at: id })
-      id = id.sourceString
-      
-      number = numbering.rep()
-    
-      relation = core.relation(id, new Array(number), null)
-      context.add(id, relation)
-      return relation
+      mustNotAlreadyBeDeclared(id.sourceString, { at: id });
+      id = id.sourceString;
+
+      number = numbering.rep();
+
+      relation = core.relation(id, new Array(number), null);
+      context.add(id, relation);
+      return relation;
     },
 
     Numbering(_leftArrow, number, _rightArrow) {
@@ -668,7 +690,7 @@ export default function analyze(match) {
     FilledTypeParams(_leftAngle, types, _rightAngle) {
       // TODO: CHECK
       // Check ValidType != self at moddecl
-      return types.asIteration().children.map((t) => t.rep())
+      return types.asIteration().children.map((t) => t.rep());
     },
     FilledClass(declaredClass, filledTypeParams) {
       const classs = declaredClass.rep();
@@ -681,151 +703,176 @@ export default function analyze(match) {
       return core.classFilledWithParam(classs, params);
     },
     SuperClass(_colon, classes) {
-      return classes.asIteration().children.map((c) => c.rep())
+      return classes.asIteration().children.map((c) => c.rep());
     },
     IdAndSuperClass(id, superclasses) {
-      mustNotBeAlreadyDeclared(id.sourceString, { at: id })
-      id = id.sourceString
-      let typeParam = core.typeParameter(id)
+      mustNotBeAlreadyDeclared(id.sourceString, { at: id });
+      id = id.sourceString;
+      let typeParam = core.typeParameter(id);
       for (classs in superclasses.rep()) {
-        typeParam.classes.add(classs)
+        typeParam.classes.add(classs);
       }
       return typeParam;
     },
     TypeParam(_leftAngle, typeParamList, _rightAngle) {
-      return typeParamList.asIteration().children.map((t) => t.rep())
+      return typeParamList.asIteration().children.map((t) => t.rep());
     },
 
     // Types can be declared out of order, so check what's already in the database
-    StructDecl(_struct, id, typeParameters, superClass, _leftBracket, parameters, _rightBracket) {
-      idStr = id.sourceString
-      mustNotBeAlreadyDeclared(idStr, { at: id })
-      
+    StructDecl(
+      _struct,
+      id,
+      typeParameters,
+      superClass,
+      _leftBracket,
+      parameters,
+      _rightBracket
+    ) {
+      idStr = id.sourceString;
+      mustNotBeAlreadyDeclared(idStr, { at: id });
+
       // can be null
-      typeParamsRep = typeParameters.rep()
-      
+      let typeParamsRep = typeParameters.rep();
+
       // Allow recursion (but not for the type params)
-      const struct = core.struct(idStr, typeParamsRep, [])
-      context.add(idStr, struct)
-      
+      const struct = core.struct(idStr, typeParamsRep, []);
+      context.add(idStr, struct);
+
       // Auto-impl superclasses
       // can be null
-      superClassRep = superClass.rep()
-      for classs in superClassRep {
-        if classs.modules != [] {
-          must(false, "Class has modules, use impl instead", { at: id })
+      let superClassRep = superClass.rep();
+      for (classs in superClassRep) {
+        if (classs.modules != []) {
+          must(false, "Class has modules, use impl instead", { at: id });
         }
-        mustMapFields(struct, classs)
-        context.classify(classs, struct)
+        mustMapFields(struct, classs);
+        context.classify(classs, struct);
       }
-      
+
       // Analyze parameters with typeParams
-      context = context.newChildContext({ inLoop: false, inData: false, module: struct })
-      for typeParam in typeParamsRep {
+      context = context.newChildContext({
+        inLoop: false,
+        inData: false,
+        module: struct,
+      });
+      for (let typeParam in typeParamsRep) {
         // Already checked mustNotBeAlreadyDeclared in IdAndSuperClass
-        context.add(typeParam.name, typeParam)
+        context.add(typeParam.name, typeParam);
       }
-      
-      params = parameters.asIteration().children.map((p) => p.rep())
-      struct.fields = params
-      mustHaveDistinctFields(struct, { at: id })
-      mustNotBeSelfContaining(struct, { at: id })
-      
-      context = context.parent
-      return core.structDeclaration(struct)
-    }
-    
-    EnumDecl(_enum, id, typeParameters, _leftBracket, parameters, _rightBracket) {
-      idStr = id.sourceString
-      mustNotBeAlreadyDeclared(idStr, { at: id })
-      
+
+      let params = parameters.asIteration().children.map((p) => p.rep());
+      struct.fields = params;
+      mustHaveDistinctFields(struct, { at: id });
+      mustNotBeSelfContaining(struct, { at: id });
+
+      context = context.parent;
+      return core.structDeclaration(struct);
+    },
+
+    EnumDecl(
+      _enum,
+      id,
+      typeParameters,
+      _leftBracket,
+      parameters,
+      _rightBracket
+    ) {
+      idStr = id.sourceString;
+      mustNotBeAlreadyDeclared(idStr, { at: id });
+
       // can be null
-      typeParamsRep = typeParameters.rep()
-      
-      const enumeration = core.enumeration(idStr, typeParamsRep, [])
-      context.add(idStr, enumeration)
-      
-      context = context.newChildContext({ inLoop: false, inData: false, module: enumeration })
-      for typeParam in typeParamsRep {
-        context.add(typeParam.name, typeParam)
+      typeParamsRep = typeParameters.rep();
+
+      const enumeration = core.enumeration(idStr, typeParamsRep, []);
+      context.add(idStr, enumeration);
+
+      context = context.newChildContext({
+        inLoop: false,
+        inData: false,
+        module: enumeration,
+      });
+      for (typeParam in typeParamsRep) {
+        context.add(typeParam.name, typeParam);
       }
-      
-      params = parameters.asIteration().children.map((p) => p.rep())
-      enumeration.cases = params
-      mustHaveDistinctFields(enumeration, { at: id })
-      mustNotBeSelfContaining(enumeration, { at: id })
-      
-      context = context.parent
-      return core.enumDeclaration(enumeration)
-    }
-    
+
+      params = parameters.asIteration().children.map((p) => p.rep());
+      enumeration.cases = params;
+      mustHaveDistinctFields(enumeration, { at: id });
+      mustNotBeSelfContaining(enumeration, { at: id });
+
+      context = context.parent;
+      return core.enumDeclaration(enumeration);
+    },
+
     ClassDecl(_class, id, typeParameters, superClass, classBody) {
-      idStr = id.sourceString
-      mustNotBeAlreadyDeclared(idStr, { at: id })
-      
+      idStr = id.sourceString;
+      mustNotBeAlreadyDeclared(idStr, { at: id });
+
       // can be null
-      typeParamsRep = typeParameters.rep()
-      
-      const classs = core.classs(idStr, typeParamsRep, [], [])
-      context.add(idStr, classs)
-      
+      typeParamsRep = typeParameters.rep();
+
+      const classs = core.classs(idStr, typeParamsRep, [], []);
+      context.add(idStr, classs);
+
       // can be null
-      superClassRep = superClass.rep()
-      for superClass in superClassRep {
-        mustMapFields(classs, superClass)
-        context.classify(superClass, classs)
+      superClassRep = superClass.rep();
+      for (superClass in superClassRep) {
+        mustMapFields(classs, superClass);
+        context.classify(superClass, classs);
       }
-      
-      context = context.newChildContext({ inLoop: false, inData: false, module: struct })
-      for typeParam in typeParamsRep {
-        context.add(typeParam.name, typeParam)
+
+      context = context.newChildContext({
+        inLoop: false,
+        inData: false,
+        module: struct,
+      });
+      for (typeParam in typeParamsRep) {
+        context.add(typeParam.name, typeParam);
       }
-      
-      for line in classBody.rep() {
-        if line.kind === "Field" {
-          classs.fields.push(line)
-        } else if line.kind === "Module" {
-          classs.modules.push(line)
+
+      for (let line in classBody.rep()) {
+        if (line.kind === "Field") {
+          classs.fields.push(line);
+        } else if (line.kind === "Module") {
+          classs.modules.push(line);
         } else {
-          must(false, "Expected field or module in class", { at: id })
+          must(false, "Expected field or module in class", { at: id });
         }
       }
-      
-      mustHaveDistinctFields(classs, { at: id })
-      mustHaveDistinctModules(classs, { at: id })
-      mustNotBeSelfContaining(classs, { at: id })
-      
-      context = context.parent
-      return core.classDeclaration(classs)
-    }
-    
+
+      mustHaveDistinctFields(classs, { at: id });
+      mustHaveDistinctModules(classs, { at: id });
+      mustNotBeSelfContaining(classs, { at: id });
+
+      context = context.parent;
+      return core.classDeclaration(classs);
+    },
+
     // TODO: things starting with "Class"
-    
+
     ClassImpl(type, _impl, classs, body) {
-      fields = []
-      modules = []
-      for line in body.rep().{
-        if line.kind === "Field" {
-          classs.fields.push(line)
-        } else if line.kind === "Module" {
-          classs.modules.push(line)
+      for (line in body.rep()) {
+        if (line.kind === "Field") {
+          classs.fields.push(line);
+        } else if (line.kind === "Module") {
+          classs.modules.push(line);
         } else {
-          must(false, "Expected field or module in impl", { at: id })
+          must(false, "Expected field or module in impl", { at: id });
         }
       }
-      //impl = classImpl(type, classs, 
+      //impl = classImpl(type, classs,
       //mustHaveModules(
-      
-      context.classify(type, classs)
-    }
-    
+
+      context.classify(type, classs);
+    },
+
     ClassBody(_left, lines, _right) {
-      return lines.children.map(l => l.rep())
-    }
-    
+      return lines.children.map((l) => l.rep());
+    },
+
     ClassImplBody(_left, lines, _right) {
-      return lines.children.map(l => l.rep())
-    }
+      return lines.children.map((l) => l.rep());
+    },
   });
 
 

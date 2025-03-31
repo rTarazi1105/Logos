@@ -38,32 +38,32 @@ export function moduleType(paramsMut, paramTypes, returnType) {
 }
 
 export function module(name, params, returnType, body) {
-  return { 
-    kind: "Module", 
-    name, 
-    params, 
-    body, 
+  return {
+    kind: "Module",
+    name,
+    params,
+    body,
     type: moduleType(
-      params.map(p => p.mutable),
-      params.map(p => p.type),
+      (params || []).map((p) => p.mutable),
+      (params || []).map((p) => p.type),
       returnType
-    )
-  }
+    ),
+  };
 }
 
 export function method(name, struct, params, returnType, body) {
-  return { 
-    kind: "Method", 
-    name, 
-    struct, 
-    params, 
-    body, 
+  return {
+    kind: "Method",
+    name,
+    struct,
+    params,
+    body,
     type: moduleType(
-      params.map(p => p.mutable),
-      params.map(p => p.type),
+      (params || []).map((p) => p.mutable),
+      (params || []).map((p) => p.type),
       returnType
-    )
-  }
+    ),
+  };
 }
 
 export function classFilledWithParam(classs, filledTypeParams) {
@@ -318,7 +318,7 @@ const equalOp = operation("equal1234567890", ["A","B"], equalStatement("A","B"))
       ],
       [module(
         "print", 
-        parameter("message", false, stringType),
+        [parameter("message", false, stringType)],
         voidType,
         null
       )]
