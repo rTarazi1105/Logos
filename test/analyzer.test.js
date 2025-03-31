@@ -16,6 +16,14 @@ const semanticChecks = [
     "struct S {x: int, y: bool} mod starting() { a: boolean; x: 5; y: true; }",
   ],
   ["module declaration", "mod math(x: int, y: int) -> int { return x + y; }"],
+  [
+    "enum declaration and usage",
+    "enum Color { Red, Green, Blue } mod starting() { c: Color = Color.Red; }",
+  ],
+  [
+    "method declaration and call",
+    "mod increment(x: int) -> int { return x + 1; } mod starting() { a: int = increment(5); }",
+  ],
 ];
 const semanticErrors = [
   [
@@ -55,6 +63,11 @@ const semanticErrors = [
     /Expected "_" or a letter/,
   ],
   [
+    "using uninitialized variable",
+    "mod starting() { x: int; y = x + 1; }",
+    /Variable x used before initialization/,
+  ],
+  [
     "operation on incompatible types",
     "mod starting() { x: boolean = true + 1; }",
     /Expected not a keyword/,
@@ -62,7 +75,7 @@ const semanticErrors = [
   [
     "struct field assignment with wrong type",
     "struct S {x: int, y: bool} mod starting() { s: S; s.x = true; }",
-    /ReferenceError: idStr is not defined/,
+    /Type mismatch: expected int but got boolean/,
   ],
   [
     "accessing non-existent struct field",

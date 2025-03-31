@@ -348,8 +348,14 @@ const equalOp = operation("equal1234567890", ["A","B"], equalStatement("A","B"))
       )]
     );
     // How deep does this go? Be careful maybe
-    collectionClass.modules[0].params[0].type = collectionClass;
-    collectionClass.modules[1].params[0].type = collectionClass;
+    if (collectionClass.modules?.length >= 2) {
+      if (collectionClass.modules[0].params?.length > 0) {
+        collectionClass.modules[0].params[0].type = collectionClass;
+      }
+      if (collectionClass.modules[1].params?.length > 0) {
+        collectionClass.modules[1].params[0].type = collectionClass;
+      }
+    }
     
     const orderingEnum = enumeration("Ordering", [], [
       field("LessThan", voidType), 
@@ -360,15 +366,21 @@ const equalOp = operation("equal1234567890", ["A","B"], equalStatement("A","B"))
       "Comparable",
       [],
       [],
-      [module(
+      [
+        module(
         "cmp",
         [parameter("self", false, null), parameter("other", false, null)],
         filledEnum(orderingEnum,[]),
         null
       )]
     );
-    comparableClass.modules[0].params[0].type = comparableClass;
-    comparableClass.modules[0].params[1].type = comparableClass;
+    if (comparableClass.modules?.length > 0) {
+      const cmpModule = comparableClass.modules[0];
+      if (cmpModule.params?.length >= 2) {
+        cmpModule.params[0].type = comparableClass;
+        cmpModule.params[1].type = comparableClass;
+      }
+    }
     
     const equatableClass = classs(
       "Equatable",
@@ -381,8 +393,13 @@ const equalOp = operation("equal1234567890", ["A","B"], equalStatement("A","B"))
         null
       )]
     );
-    equatableClass.modules[0].params[0].type = equatableClass;
-    equatableClass.modules[0].params[1].type = equatableClass;
+    if (equatableClass.modules?.length > 0) {
+      const eqModule = equatableClass.modules[0];
+      if (eqModule.params?.length >= 2) {
+        eqModule.params[0].type = equatableClass;
+        eqModule.params[1].type = equatableClass;
+      }
+    }
 
 
 const anyToVoidType = moduleType([anyType], voidType)
