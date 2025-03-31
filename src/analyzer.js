@@ -1,3 +1,4 @@
+
 class Context {
   constructor({ parent = null, locals = new Map(), classes = new Map(), inLoop = false, inData = false, module = null }) {
   // Data can have locals
@@ -53,26 +54,26 @@ class Context {
     this.classes.get(type).add(classs)
   }
   lookupClass(classs, type) {
-    if type.kind === "TypeParameter" {
+    if (type.kind === "TypeParameter") {
       output = false
-      for superClass of type.classes {
-        if superClass.name === classs.name {
+      for (superClass of type.classes) {
+        if (superClass.name === classs.name) {
           output = true
         }
         output = lookupClass(classs, superClass)
         
-        if output {
+        if (output) {
           break
         }
       }
       return output
     }
     
-    if this.classes.get(type).has(classs) {
+    if (this.classes.get(type).has(classs)) {
       return true
     }
-    for superClass of this.classes.get(type) {
-      if lookupClass(superClass, classs) {
+    for (superClass of this.classes.get(type)) {
+      if (lookupClass(superClass, classs)) {
         return true
       }
     }
@@ -81,8 +82,6 @@ class Context {
     
     return false
   }
-  
-  
   
   static root() {
     equatableClass = core.standardLibrary["Equatable"]
@@ -308,15 +307,15 @@ export default function analyze(match) {
   }
 
   function mustHaveField(type, field, at) {
-    must(type.fields.some(typeField => typeField.name === field.name && typeField.type === field.type , "No such field", at)
+    must(type.fields.some(typeField => typeField.name === field.name && typeField.type === field.type , "No such field", at))
   }
   
   function mustHaveModule(type, module, at) {
-    must(type.modules.some(typeMod => typeMod.name === module.name && equivalent(typeMod.type, module.type) , "No such method", at)
+    must(type.modules.some(typeMod => typeMod.name === module.name && equivalent(typeMod.type, module.type) , "No such method", at))
   }
   
   function mustImplAllModules(classImpl, classs, at) {
-    for (i, mod) in classs.modules.filter(m => m.body != null) {
+    for (let [i, mod] of classs.modules.filter(m => m.body != null)) {
       mustHaveModule(classImpl, mod, at)
     }
   }
@@ -380,6 +379,69 @@ export default function analyze(match) {
     Program(sections) {
         return core.program(sections.children.map(s => s.rep()));
     },
+
+    // Actions
+    ModBody(_leftBracket, actions, _rightBracket) {
+      return actions.children.map((action) => action.rep());
+    },
+
+    ActionLine(action, _semicolon) {
+      return action.rep();
+    },
+
+    Assignment(id, _eq, expr) {
+      mustNotAlreadyBeDeclared(id.sourceString, { at: id });
+      const variable = context.lookup(id.sourceString);
+      mustBeAssignable(expr.rep(), { toType: variable.type }, { at: id });
+      return core.assignment(variable, expr.rep());
+    },
+
+    MethodCall(id, _dot, id2, _rp) {
+      const method = context.lookup(id.sourceString);
+      mustBeCallable(method, { at: id });
+      mustHaveCorrectArgumentCount(args.children.length, method.params.length, {
+        at: id,
+      });
+      args.children.forEach((arg, i) => {
+        mustBeAssignable(
+          arg.rep(),
+          { toType: method.params[i].type },
+          { at: arg }
+        );
+      });
+      return core.methodCall(
+        method,
+        args.children.map((arg) => arg.rep())
+      );
+    },
+
+    ModCall(id, expr) {
+      const module = context.lookup(id.sourceString);
+      must(module?.kind === "Module", "Expected a module", { at: id });
+      const methodCall = MethodCall();
+      return core.modCall(module, methodCall);
+    },
+
+    Return(_return, _yield, expr) {
+      mustBeInAFunction({ at: _return });
+      const functionContext = context.module;
+      mustBeReturnable(expr.rep(), { from: functionContext }, { at: expr });
+      return core.returnLine(expr.rep());
+    },
+
+    Increment(id, _plus) {
+      const variable = context.lookup(id.sourceString);
+      mustBeInteger(variable, { at: id });
+      mustBeMutable(variable, { at: id });
+      return core.incrementVar(variable);
+    },
+
+    Decrement(id, _minus) {
+      const variable = context.lookup(id.sourceString);
+      mustBeInteger(variable, { at: id });
+      mustBeMutable(variable, { at: id });
+      return core.decrementVar(variable);
+    },
     
     // Data
     ValueDecl(_value, id, _colon, relationId) {
@@ -388,7 +450,7 @@ export default function analyze(match) {
         value = core.value(idStr)
         context.add(idStr, value)
         
-        if relationId != null {
+        if (relationId != null) {
           relation = relationId.rep()
           mustHaveNumber(relation.kind, 1, { at: id })
           context.addStatement(core.filledRelation(relation, [value]), true)
@@ -586,7 +648,7 @@ export default function analyze(match) {
       variable = context.lookup(name.sourceString)
       mustBeAssignedVar(variable, { at: name })
       return variable
-    }
+    },
     
     DeclaredClass(id) {
       // Lookup local is ok, they can only be declared globally
@@ -622,8 +684,8 @@ export default function analyze(match) {
     FilledStruct(id, filledTypeParams) {
       struct = id.rep()
       filledTypeParamsRep = filledTypeParams.rep()
-      if struct.typeParams == null {
-        struct.typeParams = [null; filledTypeParamsRep.length]
+      if (struct.typeParams == null) {
+        struct.typeParams = new Array(filledTypeParamsRep.length).fill(null);
       } else {
         mustHaveLength(filledTypeParamsRep, struct.typeParams.length)
       }
@@ -632,8 +694,8 @@ export default function analyze(match) {
     FilledEnum(id, filledTypeParams) {
       enumeration = id.rep()
       filledTypeParamsRep = filledTypeParams.rep()
-      if enumeration.typeParams == null {
-        enumeration.typeParams = [null; filledTypeParamsRep.length]
+      if (enumeration.typeParams == null) {
+        enumeration.typeParams = new Array(filledTypeParamsRep.length).fill(null);
       } else {
         mustHaveLength(filledTypeParamsRep, enumeration.typeParams.length)
       }
@@ -693,11 +755,11 @@ export default function analyze(match) {
     
     Param(id, _colon, type) {
       idStr = "0"
-      if id != null {
+      if (id != null) {
         idStr = id.sourceString
       }
       return core.field(idStr, type.rep())
-    }
+    },
     
     // Types can be declared out of order, so check what's already in the database
     StructDecl(_struct, id, typeParameters, superClass, _leftBracket, parameters, _rightBracket) {
@@ -714,8 +776,8 @@ export default function analyze(match) {
       // Auto-impl superclasses
       // can be null
       superClassRep = superClass.rep()
-      for classs in superClassRep {
-        if classs.modules != [] {
+      for (classs in superClassRep) {
+        if (classs.modules != []) {
           must(false, "Class has modules, use impl instead", { at: id })
         }
         mustMapFields(struct, classs)
@@ -725,15 +787,15 @@ export default function analyze(match) {
       // Analyze parameters with typeParams
       context = context.newChildContext({ inLoop: false, inData: false, module: struct })
       context.add("Self", struct)
-      for typeParam in typeParamsRep {
+      for (typeParam in typeParamsRep) {
         // Already checked mustNotBeAlreadyDeclared in IdAndSuperClass
         context.add(typeParam.name, typeParam)
       }
       
       params = parameters.asIteration().children.map((p) => p.rep())
       i = 0
-      for p in params {
-        if p.name === "0" {
+      for (p in params) {
+        if (p.name === "0") {
           p.name = i.toString()
           i++
         }
@@ -744,7 +806,7 @@ export default function analyze(match) {
       
       context = context.parent
       return core.structDeclaration(struct)
-    }
+    },
     
     EnumDecl(_enum, id, typeParameters, _leftBracket, parameters, _rightBracket) {
       idStr = id.sourceString
@@ -758,14 +820,14 @@ export default function analyze(match) {
       
       context = context.newChildContext({ inLoop: false, inData: false, module: enumeration })
       context.add("Self", enumeration)
-      for typeParam in typeParamsRep {
+      for (typeParam in typeParamsRep) {
         context.add(typeParam.name, typeParam)
       }
       
       params = parameters.asIteration().children.map((p) => p.rep())
       i = 0
-      for p in params {
-        if p.name === "0" {
+      for (p in params) {
+        if (p.name === "0") {
           p.name = i.toString()
           i++
         }
@@ -776,47 +838,47 @@ export default function analyze(match) {
       
       context = context.parent
       return core.enumDeclaration(enumeration)
-    }
+    },
     
     // Section: Methods, classes
     
     SelfParam(mut, _self) {
       mutable = true
-      if mut == null {
+      if (mut == null) {
         mutable = false
       }
       return core.parameter("self", mutable, null) // change type to Self later
-    }
+    },
     ModParam(id, _colon, mut, type) {
       idStr = id.sourceString
       mustNotBeAlreadyDeclared(idStr, { at: id })
       mutable = true
-      if mut == null {
+      if (mut == null) {
         mutable = false
       }
       return core.parameter(idStr, mutable, type.rep())
-    }
+    },
     ModHead(typeParam, _paren1, params, _paren2, returnType) {
       typeParamRep = []
-      if typeParam != null {
+      if (typeParam != null) {
         typeParamRep = typeParam.rep()
       }
       paramsRep = params.asIteration().children.map(p => p.rep())
       
       returnTypeRep = core.voidType
-      if returnType != null {
+      if (returnType != null) {
         returnTypeRep = returnType.rep()
       }
       
       mod = core.module(null, typeParamRep, paramsRep, returnTypeRep, null)
       return mod
-    }
+    },
     ActionLine(action, _colon) {
       return action.rep()
-    }
+    },
     ModBody(_brack1, actionLines, _brack2) {
       return actionLines.children.map(a => a.rep())
-    }
+    },
     ModDecl(_mod, id, head, body) {
       idStr = id.sourceString
       mustNotBeAlreadyDeclared(idStr, { at: id })
@@ -825,11 +887,11 @@ export default function analyze(match) {
       context.add(idStr, mod) // Allow recursion
       
       context = context.newChildContext({ inLoop: false, inData: false, module: mod })
-      for param in mod.params {
+      for (param in mod.params) {
         must(param.name != "self", "No self parameter", { at: id })
         context.add(param.name, param)
       }
-      for typeParam in mod.typeParams {
+      for (typeParam in mod.typeParams) {
         context.add(typeParam.name, typeParam)
       }
       bodyRep = body.rep()
@@ -837,7 +899,7 @@ export default function analyze(match) {
       
       context = context.parent
       return core.moduleDeclaration(mod)
-    }
+    },
     
     MethodDecl(_mod, structId, _dot, id, head, body) {
       struct = context.lookup(structId.sourceString)
@@ -852,13 +914,13 @@ export default function analyze(match) {
       
       context = context.newChildContext({ inLoop: false, inData: false, module: mod })
       context.add("Self", struct) // Self type
-      for param in mod.params {
-        if param.name === "self" {
+      for (param in mod.params) {
+        if (param.name === "self") {
           param.type = struct
         }
         context.add(param.name, param)
       }
-      for typeParam in mod.typeParams {
+      for (typeParam in mod.typeParams) {
         context.add(typeParam.name, typeParam)
       }
       bodyRep = body.rep()
@@ -866,16 +928,16 @@ export default function analyze(match) {
       
       context = context.parent
       return core.methodDeclaration(struct, mod)
-    }
+    },
     
     // Classes
     ClassBody(_left, lines, _right) {
       return lines.children.map(l => l.rep())
-    }
+    },
     // ClassLine
     ClassField(param, _comma) {
       return param.rep()
-    }
+    },
     ClassMod(_mod, id, head, body) {
       idStr = id.sourceString
       mustNotBeAlreadyDeclared(idStr, { at: id })
@@ -888,25 +950,25 @@ export default function analyze(match) {
           
       context = context.newChildContext({ inLoop: false, inData: false, module: mod })
       context.add("Self", struct) // Self type
-      for param in mod.params {
-        if param.name === "self" {
+      for (param in mod.params) {
+        if (param.name === "self") {
           param.type = struct
         }
         context.add(param.name, param)
       }
-      for typeParam in mod.typeParams {
+      for (typeParam in mod.typeParams) {
         context.add(typeParam.name, typeParam)
       }
           
       bodyRep = null
-      if body.sourceString != ";" {
+      if (body.sourceString != ";") {
         bodyRep = body.rep()
       }
       mod.body = bodyRep
       
       context = context.parent
       return core.moduleDeclaration(mod)
-    }
+    },
     
     ClassDecl(_class, id, typeParameters, superClass, classBody) {
       idStr = id.sourceString
@@ -920,23 +982,23 @@ export default function analyze(match) {
       
       // can be null
       superClassRep = superClass.rep()
-      for superClass in superClassRep {
+      for (superClass in superClassRep) {
         mustMapFields(classs, superClass)
         context.classify(superClass, classs)
       }
       
       context = context.newChildContext({ inLoop: false, inData: false, module: classs })
       context.add("Self", classs)
-      for typeParam in typeParamsRep {
+      for (typeParam in typeParamsRep) {
         context.add(typeParam.name, typeParam)
       }
       
-      for line in classBody {
+      for (line in classBody) {
         
         lineRep = line.rep()
-        if lineRep.kind === "Field" {
+        if (lineRep.kind === "Field") {
           classs.fields.push(lineRep)
-        } else if lineRep.kind === "ModuleDeclaration" {
+        } else if ( lineRep.kind === "ModuleDeclaration") {
           classs.modules.push(lineRep.module)
         } else {
           must(false, "Expected field or module in class", { at: id })
@@ -949,12 +1011,12 @@ export default function analyze(match) {
       
       context = context.parent
       return core.classDeclaration(classs)
-    }
+    },
     
     
     ClassImplBody(_left, lines, _right) {
       return lines.children.map(l => l.rep())
-    }
+    },
     // ClassImplLine
     ParamMap(_colon, id) {
       idStr = id.sourceString
@@ -962,7 +1024,7 @@ export default function analyze(match) {
       mustHaveField(impl.type, idStr)
       must(!(impl.type.kind === "Enum"), "Enum does not have fields", { at: id })
       return impl.type.fields.find(f => f.name === idStr)
-    }
+    },
     ClassImplField(id, respectiveParam, _comma) {
       idStr = id.sourceString
       impl = context.module
@@ -971,13 +1033,13 @@ export default function analyze(match) {
       classField = impl.classs.fields.find(f => f.name === idStr)
       
       typeField = null
-      if respectiveParam != null {
+      if (respectiveParam != null) {
         typeField = respectiveParam.rep()
       }
       mustBothHaveTheSameType(classField, typeField)
       
       return core.fieldMapping(classField.name, typeField.name, typeField.type)
-    }
+    },
     
     ClassImpl(type, _impl, filledClass, body) {
       fieldsMap = []
@@ -986,16 +1048,16 @@ export default function analyze(match) {
       classRep = filledClass.rep()
       mustBeImplementable(typeRep, classRep, { at: type })
       impl = core.classImpl(typeRep, classRep, fieldsMap, modules)
-      context.add(typeRep.name + ".impl." classRep.name, impl)
+      context.add(typeRep.name + ".impl." + classRep.name, impl)
       
       context.classify(typeRep, classRep)
       
       context = context.newChildContext({ inLoop: false, inData: false, module: impl })
       
-      for line in body.rep() {
-        if line.kind === "FieldMapping" {
+      for (line in body.rep()) {
+        if (line.kind === "FieldMapping") {
           impl.fieldsMap.push(line)
-        } else if line.kind === "ModuleDeclaration" {
+        } else if (line.kind === "ModuleDeclaration") {
           mustHaveModule(impl, line.mod)
           impl.modules.push(line.mod)
         } else {
@@ -1012,6 +1074,6 @@ export default function analyze(match) {
       
       context = context.parent
       return impl
-    }
+    },
   });
 }

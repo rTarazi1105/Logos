@@ -13,6 +13,10 @@ export function assignment(variable, assignable) {
   return { kind: "Assignment", variable, assignable }
 }
 
+export function variableDeclaration(variable, initializer) {
+  return { kind: "VariableDeclaration", variable, initializer };
+}
+
 export function variable(name, mutable, type) {
   return { kind: "Variable", name, mutable, type }
 }
@@ -34,18 +38,18 @@ export function moduleType(paramsMut, paramTypes, returnType) {
 }
 
 export function module(name, typeParams, params, returnType, body) {
-  return { 
-    kind: "Module", 
-    name, 
+  return {
+    kind: "Module",
+    name,
     typeParams,
-    params, 
-    body, 
+    params,
+    body,
     type: moduleType(
-      params.map(p => p.mutable),
-      params.map(p => p.type),
+      (Array.isArray(params) ? params : []).map((p) => p.mutable),
+      (Array.isArray(params) ? params : []).map((p) => p.type),
       returnType
-    )
-  }
+    ),
+  };
 }
 
 export function filledStruct(struct, filledTypeParams) {
@@ -60,13 +64,12 @@ export function filledClass(classs, filledTypeParams) {
 }
 // Used for organizing methods
 export function getTypeName(userDefinedType) {
-  if userDefinedType.kind === "FilledClass"
-    string = filledClass.classs.name + "<"
-    for p in filledClass.filledTypeParams {
-      string = string + stringify(p) // should be struct, enum or class
+  if (userDefinedType.kind === "FilledClass") {
+    string = filledClass.classs.name + "<";
+    for (p in filledClass.filledTypeParams) {
+      string = string + stringify(p); // should be struct, enum or class
     }
-    
-  else {
+  } else {
     return userDefinedType.name
   }
 }
@@ -318,7 +321,7 @@ const equalOp = operation("equal1234567890", ["A","B"], equalStatement("A","B"))
       ],
       [module(
         "print", 
-        parameter("message", false, stringType),
+        [parameter("message", false, stringType)],
         voidType,
         null
       )]
