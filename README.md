@@ -25,17 +25,17 @@ Features:
 - Exceptions and optionals
 
 **Examples:**
-Importing:
-use mod::axioms;
+<ins>Importing:<\ins>
+_use mod::axioms;
 
 mod Main {
 	axioms::Axioms;
 	
 	define var 2 = succ(1);
 	
-}
-Priority:
-import here::basics;
+}_
+<ins>Priority:<\ins>
+_import here::basics;
 use basics::ifthen;
 use basics::Contradiction;
 
@@ -73,9 +73,9 @@ mod Main {
 	
 	assume C; Examine(X);
 	print B.truth;		// true
-}
-Structs:
-struct Matrix {
+}_
+<ins>Structs:<\ins>
+_struct Matrix {
 	contents: [[Int; _]; _]
 }
 
@@ -102,17 +102,17 @@ mod createStochastic(cols: Int, rows: Int) {
 		contents: [[0; rows]; cols],
 		sum: 100
 	}
-}
-Generator:
-mod Range(n: Int) -> Collection {
+}__
+<ins>Generator:<\ins>
+_mod Range(n: Int) -> Collection {
 	i = 0;
 	while i != n {
 		yield i;
 		i = i + 1;
 	}
-}
-Axioms:
-import here::basics;
+}_
+<ins>Axioms:<\ins>
+_import here::basics;
 use basics.data;
 use basics::Set;
 
@@ -131,7 +131,7 @@ Set Naturals(x : ∃succ(x));
 mod Axioms {
 	assume ∃succ(0); assume ∃succ(x) ifthen ∃succ(succ(x));
 	if Naturals.Contains(succ(0)).truth print "success"
-}
+}_
 
 **Collaborators:**
 Rayane Tarazi, Daniel Munoz, Akash Beh, Nick Aurino
