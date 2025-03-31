@@ -352,6 +352,14 @@ export default function analyze(match) {
     },
 
     // Actions
+    ModBody(_leftBracket, actions, _rightBracket) {
+      return actions.children.map((action) => action.rep());
+    },
+
+    ActionLine(action, _semicolon) {
+      return action.rep();
+    },
+
     Assignment(id, _eq, expr) {
       mustNotAlreadyBeDeclared(id.sourceString, { at: id });
       const variable = context.lookup(id.sourceString);
