@@ -2,7 +2,7 @@ operation ifthen : P,Q : not P or Q;
 
 struct Contradiction {} // comment
 
-mod Add(array: mut [bool]) -> bool {
+mod Add(array: mut [bool;]) -> bool {
 	i = 0;
 	while array.i != none do
 		if args.i == false then {

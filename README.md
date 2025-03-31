@@ -24,3 +24,117 @@ Features:
 - Sequential flow
 - Exceptions and optionals
 
+**Examples:**
+Importing:
+use mod::axioms;
+
+mod Main {
+	axioms::Axioms;
+	
+	define var 2 = succ(1);
+	
+}
+Priority:
+import here::basics;
+use basics::ifthen;
+use basics::Contradiction;
+
+statement A : "It's raining";
+statement B : "The ground is wet";
+statement C : "It rained yesterday";
+
+statement X : A and C ifthen B;		// Priority of operations over "and"
+
+mod Examine(S: statement) { // given that the statement is true
+	if S.truth != true throw Contradiction;
+	match S {
+		conjunction(C) => for I in C {
+			assume I;
+			Examine(I);
+		},
+		disjunction(D) => {
+			T = none;
+			all_false_except_one = true;
+			for I in D
+				if I.truth == none {
+					if T != none break;
+					T = I;
+				} else if I.truth
+					all_false_except_one = false;
+			if all_false_except_one assume T;
+		},
+	}
+}
+
+mod Main {
+	assume X;
+	
+	print B.truth;		// none
+	
+	assume C; Examine(X);
+	print B.truth;		// true
+}
+Structs:
+struct Matrix {
+	contents: [[Int; _]; _]
+}
+
+mod Matrix.cols -> Int {
+	self.0.len
+}
+mod Matrix.rows -> Int {
+	self.0[0].len
+}
+
+// inheritance
+struct Matrix.Stochastic {
+	sum: Int
+}
+
+mod createMatrix(cols: Int, rows: Int) {
+	Matrix {
+		contents: [[0; rows]; cols],
+	}
+}
+
+mod createStochastic(cols: Int, rows: Int) {
+	Matrix.Stochastic {
+		contents: [[0; rows]; cols],
+		sum: 100
+	}
+}
+Generator:
+mod Range(n: Int) -> Collection {
+	i = 0;
+	while i != n {
+		yield i;
+		i = i + 1;
+	}
+}
+Axioms:
+import here::basics;
+use basics.data;
+use basics::Set;
+
+property is_injective f : f(x) = f(y) ifthen x = y;
+// x and y are ∀ by default
+
+var 0 : "zero";
+
+// succession
+func succ x : "custom" and succ(x) != 0 and is_injective(succ);
+
+var 1 : 1 = succ(0);
+
+Set Naturals(x : ∃succ(x));
+
+mod Axioms {
+	assume ∃succ(0); assume ∃succ(x) ifthen ∃succ(succ(x));
+	if Naturals.Contains(succ(0)).truth print "success"
+}
+
+**Collaborators:**
+Rayane Tarazi, Daniel Munoz, Akash Beh, Nick Aurino
+
+**Repo Link:**
+https://github.com/rTarazi1105/Logos.git
