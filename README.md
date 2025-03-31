@@ -24,8 +24,9 @@ Features:
 - Sequential flow
 - Exceptions and optionals
 
-**Examples:**
-Importing:
+## Examples:
+
+### Importing:
 use mod::axioms;
 
 mod Main {
@@ -34,7 +35,9 @@ mod Main {
 	define var 2 = succ(1);
 	
 }
-Priority:
+
+### Priority:
+```
 import here::basics;
 use basics::ifthen;
 use basics::Contradiction;
@@ -74,7 +77,9 @@ mod Main {
 	assume C; Examine(X);
 	print B.truth;		// true
 }
-Structs:
+```
+### Structs:
+```
 struct Matrix {
 	contents: [[Int; _]; _]
 }
@@ -103,7 +108,9 @@ mod createStochastic(cols: Int, rows: Int) {
 		sum: 100
 	}
 }
-Generator:
+```
+### Generator:
+```
 mod Range(n: Int) -> Collection {
 	i = 0;
 	while i != n {
@@ -111,7 +118,9 @@ mod Range(n: Int) -> Collection {
 		i = i + 1;
 	}
 }
-Axioms:
+```
+### Axioms:
+```
 import here::basics;
 use basics.data;
 use basics::Set;
@@ -132,7 +141,7 @@ mod Axioms {
 	assume ∃succ(0); assume ∃succ(x) ifthen ∃succ(succ(x));
 	if Naturals.Contains(succ(0)).truth print "success"
 }
-
+```
 **Collaborators:**
 Rayane Tarazi, Daniel Munoz, Akash Beh, Nick Aurino
 
