@@ -1,3 +1,5 @@
+// Note on comments: "future" refers to a type that has been called but not defined (declared) yet
+
 import * as core from "../src/core.js";
 class Context {
   constructor({
@@ -7,18 +9,19 @@ class Context {
     inLoop = false,
     inData = false,
     module = null,
+    musts = new Array(),
   }) {
     // Data can have locals
     // Data can be inside module but not vice versa
-    Object.assign(this, { parent, locals, classes, inLoop, module });
+    Object.assign(this, { parent, locals, classes, inLoop, module, musts });
   }
   // Default will be Key: String, value: T
   // For truths, key: statement, value: bool
   add(name, entity) {
     this.locals.set(name, entity);
   }
-  lookup(name) {
-    return this.locals.get(name) || this.parent?.lookup(name);
+  lookup(key) {
+    return this.locals.get(key) || this.parent?.lookup(key);
   }
 
   addStatement(statement, truth) {
@@ -36,7 +39,7 @@ class Context {
       truth = !truth;
     }
 
-    let existing = this.locals.get(statement);
+    const existing = this.locals.get(statement);
     if (existing != null) {
       if (existing != truth) {
         throw new Error(`Contradiction in data: ${statement.name}`);
@@ -50,40 +53,40 @@ class Context {
   }
 
   // Collection, Equatable, Comparable, Error
-  // classes: Map<type, Set<class>>
-  classify(classs, type) {
-    if (!this.classes.has(type)) {
-      this.classes.set(type, new Set());
+  // classes: Map<type, Map<string,class>>
+  
+  // Why are classes indexed by string?
+  // We don't have Struct<T> impl Class<T> thankfully
+  // If Struct impl Class<A>, Struct cannot impl Class<B>
+  
+  classify(filledClass, type) {
+    if (!this.classes.containsKey(type)) {
+      this.classes.set(type, new Map());
     }
-    this.classes.get(type).add(classs);
+    
+    const typeEntry = this.classes.get(type);
+    if 
+    this.classes.get(type).add(filledClass);
   }
-  lookupClass(classs, type) {
+  
+  lookupClass(className, type) {
+    let superClasses = this.classes.get(type);
     if (type.kind === "TypeParameter") {
-      let output = false;
-      for (let superClass of type.classes) {
-        if (superClass.name === classs.name) {
-          output = true;
-        }
-        output = lookupClass(classs, superClass);
-
-        if (output) {
-          break;
-        }
+      superClasses = type.classes;
+    }
+    
+    for (let filledClass of superClasses) {
+      if (filledClass.classs.name === className) {
+        return true;
       }
-      return output;
-    }
-
-    if (this.classes.get(type).has(classs)) {
-      return true;
-    }
-    for (let superClass of this.classes.get(type)) {
-      if (lookupClass(superClass, classs)) {
+      if lookupClass(className, filledClass) {
         return true;
       }
     }
+    
     // Don't look in parent - it should be the same
-    // this.parent.lookupClass(classs, type)
-
+    // this.parent.lookupClass(className, type)
+    
     return false;
   }
 
@@ -94,9 +97,9 @@ class Context {
     return new Context({
       locals: new Map(Object.entries(core.standardLibrary)),
       classes: new Map([
-        [core.boolType, new Set([equatableClass])],
-        [(core.intType, new Set([comparableClass]))],
-        [(comparableClass, new Set([equatableClass]))],
+        [core.boolType, new Map([["Equatable",equatableClass]])],
+        [(core.intType, new Map([["Comparable",comparableClass]]))],
+        [(comparableClass, new Map([["Equatable",equatableClass]]))],
       ]),
     });
   }
@@ -144,11 +147,11 @@ export default function analyze(match) {
     );
   }
 
-  function mustBeTypeT(e, t, at) {
+  function mustBeKindK(e, t, at) {
     must(e?.kind === t, `Expected type ${t}`, at);
   }
 
-  function mustHaveClass(e, at, className) {
+  function mustHaveClass(e, className, at) {
     must(
       context.lookupClass(className, e),
       `Expected type to have class <${className}>`,
@@ -156,7 +159,7 @@ export default function analyze(match) {
     );
   }
 
-  function mustNotHaveClass(e, at, className) {
+  function mustNotHaveClass(e, className, at) {
     must(
       !context.lookupClass(className, e),
       `Class <${className}> already declared or not expected`,
@@ -164,10 +167,11 @@ export default function analyze(match) {
     );
   }
 
+// Unused but should be FilledStruct
   function mustBeAStruct(e, at) {
     must(e.type?.kind === "Struct", "Expected a struct", at);
   }
-
+// ^
   function mustBeAStructOrClass(e, at) {
     must(
       e.type?.kind === "Struct" || e.type?.kind === "Classs",
@@ -266,6 +270,10 @@ export default function analyze(match) {
   function mustHaveNumber(e, n, at) {
     must(e?.number === n, "Incorrect number", at);
   }
+  
+  function mustHaveEqualLength(e1, e2, at) {
+    must(e1?.length === e2?.length, "Expected equal length", at)
+  }
 
   function mustHaveLength(e, n, at) {
     must(e?.length === n, "Incorrect length", at);
@@ -318,7 +326,8 @@ export default function analyze(match) {
         typeFields.find((f) => f.name === field.name)?.type === field.type
     );
   }
-
+  
+  // TODO: Update this for FilledStruct or FilledClass to impl FilledClass
   function mustMapFields(struct, classs, at) {
     must(checkFieldMap(struct.fields, classs.fields), "Fields do not map", at);
   }
@@ -390,9 +399,10 @@ export default function analyze(match) {
   // Up to here
   // reconsider enum cases
 
+// UNUSED
   function mustBeCallable(e, at) {
     const callable =
-      e?.kind === "StructType" || e.type?.kind === "FunctionType";
+      e?.kind === "FilledStruct" || e?.kind === "FilledClass" || e.type?.kind === "FunctionType";
     must(callable, "Call of non-function or non-constructor", at);
   }
 
@@ -416,7 +426,8 @@ export default function analyze(match) {
   }
 
   // BUILDER
-  // TODO: For .map, use .children if + or *. If list, use .asIteration.children
+  // Before .map(), use .children if + or *
+  // If list, use .asIteration.children
 
   const builder = match.matcher.grammar.createSemantics().addOperation("rep", {
     Program(sections) {
@@ -425,11 +436,20 @@ export default function analyze(match) {
     
     // Assignables
     Construct(filledStruct, _brack1, assignables, _brack2) {
-      filledStructRep = filledStruct.rep()
-      assignablesRep = assignables.asIteration().children.map(a => a.rep())
-      mustHaveLength(assignablesRep, filledStructRep.struct.fields.length)
+      filledStructRep = filledStruct.rep();
+      assignablesRep = assignables.asIteration().children.map(a => a.rep());
+      
+      if filledStructRep.struct.fields == null {
+        // Future
+      } else {
+        mustHaveLength(assignablesRep, filledStructRep.struct.fields.length, { at: filledStruct });
+        
+      }
+      
       return core.construct(filledStructRep, assignablesRep)
     },
+        // Literal?
+    
     
     
 
@@ -623,27 +643,27 @@ export default function analyze(match) {
     },
     Relation(r) {
       const relation = context.lookup(r.sourceString);
-      mustBeTypeT(relation?.kind, "RelationType", { at: r });
+      mustBeKindK(relation?.kind, "RelationType", { at: r });
       return relation;
     },
     Operation(o) {
       const operation = context.lookup(o.sourceString);
-      mustBeTypeT(operation?.kind, "OperationType", { at: o });
+      mustBeKindK(operation?.kind, "OperationType", { at: o });
       return operation;
     },
     Property(p) {
       const property = context.lookup(p.sourceString);
-      mustBeTypeT(property?.kind, "PropertyType", { at: p });
+      mustBeKindK(property?.kind, "PropertyType", { at: p });
       return property;
     },
     Value(v) {
       const value = context.lookup(v.sourceString);
-      mustBeTypeT(value, "Value", { at: v });
+      mustBeKindK(value, "Value", { at: v });
       return value;
     },
     Infix(i) {
       const infix = context.lookup(i.sourceString);
-      mustBeTypeT(infix, "Infix", { at: i });
+      mustBeKindK(infix, "Infix", { at: i });
       return infix;
     },
     AssignedVariable(name) {
@@ -660,7 +680,7 @@ export default function analyze(match) {
         const id = id.sourceString;
         // Last two null show that it's assumed before declaration
         // But empty list should remain
-        const classs = core.classs(id, [], null, null);
+        const classs = core.classs(id, null, null, null); // Future
         context.add(id, classs);
       }
       return classs;
@@ -669,7 +689,7 @@ export default function analyze(match) {
       const idStr = id.sourceString;
       let struct = context.lookup(idStr);
       if (struct == null) {
-        struct = core.struct(idStr, null, null);
+        struct = core.struct(idStr, null, null); // Future
         context.add(idStr, struct);
       }
       return struct;
@@ -678,47 +698,115 @@ export default function analyze(match) {
       const idStr = id.sourceString;
       let enumeration = context.lookup(idStr);
       if (enumeration == null) {
-        enumeration = core.enumeration(idStr, null, null);
+        enumeration = core.enumeration(idStr, null, null); // Future
         context.add(idStr, struct);
       }
       return enumeration;
     },
     FilledStruct(id, filledTypeParams) {
       const struct = id.rep();
+      context = context.newChildContext({inLoop: false, inData: false, module: struct.typeParams});
       const filledTypeParamsRep = filledTypeParams.rep();
-      if (struct.typeParams == null) {
-        struct.typeParams = new Array(filledTypeParamsRep.length).fill(null);
-      } else {
-        mustHaveLength(filledTypeParamsRep, struct.typeParams.length);
-      }
+      context = context.parent;
       return core.filledStruct(struct, filledTypeParamsRep);
     },
     FilledEnum(id, filledTypeParams) {
       const enumeration = id.rep();
+      context = context.newChildContext({inLoop: false, inData: false, module: enumeration.typeParams});
       const filledTypeParamsRep = filledTypeParams.rep();
-      if (enumeration.typeParams == null) {
-        enumeration.typeParams = new Array(filledTypeParamsRep.length).fill(
-          null
-        );
-      } else {
-        mustHaveLength(filledTypeParamsRep, enumeration.typeParams.length);
-      }
+      context = context.parent;
       return core.filledEnum(enumeration, filledTypeParamsRep);
     },
 
-    VarField(id, _dot, field) {
-      const variable = context.lookup(id.sourceString);
-      field = field.sourceString;
-      if (variable == null) {
-        // Assume tbd enum
-        id = id.sourceString;
-        const enumeration = core.enumeration(id, [core.field(field, null)]);
-        context.add(id, enumeration);
+    VarField(id, _dot, fieldId) {
+      let idStr = id.sourceString;
+      let fieldStr = fieldId.sourceString; // .trim()?
+      
+      if (word[0] === word[0].toUpperCase()) {
+        // Must be an enum
+        const enumeration = context.lookup(idStr);
+        
+        if (enumeration == null) { // Future
+          const newCase = core.field(fieldStr, null);
+          const newEnum = core.enumeration(id, null, [newCase]);
+          context.add(idStr, newEnum);
+          
+          return core.enumCase(newEnum, newCase);
+          
+          
+        } else {
+          mustBeKindK(enumeration, "Enum", { at: id });
+          
+          let casee = enumeration.cases.find((c) => c.name === fieldStr);
+          
+          if casee == null {
+            if (enumeration.typeParams == null) {
+              // Future so cases are mutable
+              casee = core.field(fieldStr, null);
+              enumeration.cases.push(casee);
+            } else {
+              must(false, "No such field", { at: id });
+            }
+          }
+          return core.enumCase(enumeration, casee);
+        }
+        
+        
       } else {
+        // Must be a variable
+        // No you can't do [a,b,c].0
+        const variable = context.lookup(idStr);
+        mustBeKindK(variable, "Variable", { at: id });
+        
+        if variable.type?.kind === "FilledStruct" || variable.type?.kind === "FilledClass" {
+          
+          
+        } else {
+          // Must be list index
+          mustHaveClass(variable, "Collection", { at: id });
+          // TODO: ArrayType and ListType auto-impl Collection
+          
+          let number = Number(fieldStr);
+          must(Number.isInteger(number), "List index is not numeric", { at: id });
+          
+          return core.varIndex(
+        }
+      }
+      
+      const variable = context.lookup(id.sourceString);
+      fieldName = fieldId.sourceString;
+      if (variable == null) {
+        // Assume tbd enum - future
+        id = id.sourceString;
+        const newField = core.field(fieldName, null);
+        const enumeration = core.enumeration(id, [newField]); // Future
+        context.add(id, enumeration);
+        
+        return core.enumCase(enumeration, field);
+        
+      } else {
+        let field = variable.fields.find((f) => f.name === fieldName);
+        if (field == null) {
+          if variable.kind === "Enum" { // Future
+            newField = core.field(fieldName, null);
+            variable.fields.push(
+          }
+        }
+      }
+      
+      
+      
+       else {
         //mustHaveField(variable, field, { at: id } )
         const field = variable.fields.find((f) => f.name === field); // Can be an enum
         if (field == null) {
-          must(false, "No such field", { at: id });
+          if (variable.kind === "Enum") {
+            // Future
+            newField = core.field(field, null);
+            enumeration.fields.push(core.field(field, null));
+            field = 
+          }
+          
         }
 
         if (variable.kind === "Enum") {
@@ -731,18 +819,52 @@ export default function analyze(match) {
 
     // Section: Struct, enum, types
     FilledTypeParams(_leftAngle, types, _rightAngle) {
-      // TODO: CHECK ?
-      let typesRep = types.asIteration().children.map((t) => t.rep());
+      let typeParams = context.module;
+      
+      if typeParams == null {
+        // Struct, enum, or class has not been defined yet
+        // we assume it will be later
+        throw new Error("TODO");
+      }
+      
+      must(
+        Array.isArray(typeParams) && typeParams.every(item => 
+          typeof item === "object" &&
+          item !== null &&
+          item.kind === "TypeParameter"
+        ),
+        "Expected context to be TypeParameters",
+        { at: types },
+      );
+      
+      let typesList = types.asIteration().children;
+      mustHaveEqualLength(typeParams.length === typesList.length, { at: types });
+      
+      let typesRep = new Array();
+      for (index, type) in typesList.entries() {
+        let typeRep = type.rep();
+        
+        // Check at end?
+        for (let classRequired of typeParams[index].classes) {
+           mustHaveClass(typeRep, classRequired.name, { at: types });
+        }
+        
+        typesRep.push(typeRep);
+      }
       return typesRep;
     },
     FilledClass(declaredClass, filledTypeParams) {
       const classs = declaredClass.rep();
+      
+      // Use context for type parameters
+      context = context.newChildContext({
+        inLoop: false,
+        inData: false,
+        module: classs.typeParams, // Future: may be null
+      });
       const params = filledTypeParams.rep();
-      must(
-        classs.typeParams.length === params.length,
-        "Too many or few type parameters",
-        { at: declaredClass }
-      );
+      context = context.parent;
+      
       return core.classFilledWithParam(classs, params);
     },
     SuperClass(_colon, classes) {
@@ -750,8 +872,8 @@ export default function analyze(match) {
     },
     IdAndSuperClass(id, superclasses) {
       mustNotAlreadyBeDeclared(id.sourceString, { at: id });
-      const id1 = id.sourceString;
-      let typeParam = core.typeParameter(id1);
+      const idStr = id.sourceString;
+      let typeParam = core.typeParameter(idStr);
       for (let classs in superclasses.rep()) {
         typeParam.classes.add(classs);
       }
@@ -792,12 +914,12 @@ export default function analyze(match) {
       // Auto-impl superclasses
       // can be null
       const superClassRep = superClass.rep();
-      for (let classs in superClassRep) {
-        if (classs.modules != []) {
+      for (let filledClass in superClassRep) {
+        if (filledClass.classs.modules != []) {
           must(false, "Class has modules, use impl instead", { at: id });
         }
-        mustMapFields(struct, classs);
-        context.classify(classs, struct);
+        mustMapFields(struct, filledClass.classs);
+        context.classify(filledClass, struct);
       }
 
       // Analyze parameters with typeParams
@@ -948,7 +1070,7 @@ export default function analyze(match) {
 
     MethodDecl(_mod, structId, _dot, id, head, body) {
       let struct = context.lookup(structId.sourceString);
-      mustBeTypeT(struct, "Struct", { at: structId });
+      mustBeKindK(struct, "Struct", { at: structId });
 
       let idStr = id.sourceString;
       mustNotAlreadyBeDeclared(idStr, { at: id });

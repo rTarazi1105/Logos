@@ -2,6 +2,18 @@ export function program(sections) {
 	return { kind : "Program", sections }
 }
 
+// These are used to check things that are used before declaration
+// Namely, FilledStruct, FilledEnum, and FilledClass
+export function requireKind(object, kind) {
+  return { kind: "RequireKind", object, requiredKind: kind }
+}
+export function requireClass(object, className) {
+  return { kind: "RequireClass", object, className }
+}
+export function requireType(object, type) {
+  
+}
+
 // Primitives
 export const boolType = { kind: "BoolType" }
 export const intType = { kind: "IntType" }
@@ -33,7 +45,7 @@ export function struct(name, typeParams, fields) {	// auto-impl superclasses
   return { kind: "Struct", name, typeParams, fields, methods: [] }
 }
 
-export function enumeration(name, typeParams, cases) { // cases are like fields
+export function enumeration(name, typeParams, cases) { // cases have kind field
   return { kind: "Enum", name, typeParams, cases }
 }
 
@@ -82,13 +94,14 @@ export function classs(name, typeParams, fields, modules) {	// auto-impl "
   return { kind: "Classs", name, typeParams, fields, modules }
 }
 
-export function classImpl(type, classs, fieldsMap, modules) {
-  return { kind: "ClassImpl", type, classs, fieldsMap, modules }
+export function classImpl(type, filledClass, fieldsMap, modules) {
+  return { kind: "ClassImpl", type, filledClass, fieldsMap, modules }
 }
 	// Elements
 
-export function fieldMapping(name, nameInType, type) { // first name is in class
-  return { kind: "FieldMapping", name, nameInType, type }
+// Unused?
+export function fieldMapping(name, localName, type) { // first name is in class
+  return { kind: "FieldMapping", name, localName, type }
 }
 
 export function field(name, type) {	// or param
@@ -254,6 +267,9 @@ export function orVariable(bool1, bool2) {
 	// x.i
 export function varField(variable, field) {	// includes list indices
   return { kind: "VarField", variable, field, type: field.type }
+}
+export function varIndex(variable, index, type) { // get type from arrayType.baseType
+  return { kind: "VarIndex", variable, index, type }
 }
 export function enumCase(filledEnum, field) {
   return { kind: "EnumCase", filledEnum, field, type: field.type }

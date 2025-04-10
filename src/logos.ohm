@@ -206,8 +206,9 @@ Logos {
 	Bool = "true" | "false"
 	
 	number = digit+
-	id1 = ~keyword idchar+					// for data in the header
-	id2 = ~keyword idletter idchar*				// for types and variables in body
+	id1 = ~keyword idchar+					// data in header can start with a number
+	id2 = ~keyword idletter idchar*				// variables, modules etc
+	id3 = ~keyword upper idchar*				// types must be capitalized
 	idchar = alnum | "_"
 	idletter = letter | "_"
 	dot = "."
@@ -253,13 +254,13 @@ Logos {
 	Property = Variable | id1
 	Value = Variable | id1
 	FilledStruct = Struct FilledTypeParams?
-	Struct = id2
+	Struct = id3
 	DeclaredClass = Class | "Error" | "Comparable" | "Equatable" | "Collection"
-	Class = id2
+	Class = id3
 	Method = id2
 	Mod = id2
 	FilledEnum = Enum FilledTypeParams?
-	Enum = id2
+	Enum = id3
 	AssignedVariable = id2
 	Field = id2 | number
 }
