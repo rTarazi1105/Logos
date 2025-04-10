@@ -92,7 +92,7 @@ Logos {
 	
 	TypeParam = "<" ListOf<IdAndSuperClass, ","> ">"		// no superclass = Any
 	IdAndSuperClass = id2 SuperClass?
-	FilledTypeParams = "<" ListOf<ValidType, ","> ">"
+	TypeArgs = "<" ListOf<ValidType, ","> ">"
 	
 	Param = (id2 ":")? ValidType				// if no id: let it be 0,1 etc
 	SelfParam = Mutable? "self"
@@ -108,7 +108,7 @@ Logos {
 		| FilledClass
 		| FilledStruct
 		| FilledEnum
-	FilledClass = DeclaredClass FilledTypeParams?
+	FilledClass = DeclaredClass TypeArgs?
 	NumberedRelation = "relation" Numbering?
 	DefaultValidType
 		= "value"
@@ -253,13 +253,13 @@ Logos {
 	UserDefinedInfix = id2
 	Property = Variable | id1
 	Value = Variable | id1
-	FilledStruct = Struct FilledTypeParams?
+	FilledStruct = Struct TypeArgs?
 	Struct = id3
 	DeclaredClass = Class | "Error" | "Comparable" | "Equatable" | "Collection"
 	Class = id3
 	Method = id2
 	Mod = id2
-	FilledEnum = Enum FilledTypeParams?
+	FilledEnum = Enum TypeArgs?
 	Enum = id3
 	AssignedVariable = id2
 	Field = id2 | number

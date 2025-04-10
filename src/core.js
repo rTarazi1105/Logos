@@ -4,14 +4,20 @@ export function program(sections) {
 
 // These are used to check things that are used before declaration
 // Namely, FilledStruct, FilledEnum, and FilledClass
-export function requireKind(object, kind) {
-  return { kind: "RequireKind", object, requiredKind: kind }
+export function requireKind(name, kind) {
+  return { kind: "RequireKind", name, requiredKind: kind }
 }
-export function requireClass(object, className) {
-  return { kind: "RequireClass", object, className }
+export function requireClass(name, className) {
+  return { kind: "RequireClass", name, className }
 }
-export function requireType(object, type) {
-  
+export function requireStruct(name, paramTypes) {
+  return { kind: "RequireStruct", name, paramTypes }
+}
+export function requireType(name, type) {
+  return { kind: "RequireType", name, type }
+}
+export function requireMethod(name, methodName, paramTypes) {
+  return { kind: "RequireMethod", name, methodName, paramTypes }
 }
 
 // Primitives
@@ -38,7 +44,7 @@ export function variable(name, type, contents) { // always mutable
 }
 
 export function typeParameter(name) {
-  return { kind: "TypeParameter", name, classes: new Set() }
+  return { kind: "TypeParameter", name, classes: new Map() } // Map<string, Class> - explained in analyzer
 }
 
 export function struct(name, typeParams, fields) {	// auto-impl superclasses
@@ -68,21 +74,22 @@ export function module(name, typeParams, params, returnType, body) {
   };
 }
 
-export function filledStruct(struct, filledTypeParams) {
-  return { kind: "FilledStruct", struct, filledTypeParams }
+export function filledStruct(struct, typeArgs) {
+  return { kind: "FilledStruct", inner: struct, typeArgs }
 }
-export function filledEnum(enumeration, filledTypeParams) {
-  return { kind: "FilledEnum", enumeration, filledTypeParams }
+export function filledEnum(enumeration, typeArgs) {
+  return { kind: "FilledEnum", enumeration, typeArgs }
 }
 
-export function filledClass(classs, filledTypeParams) {
-  return { kind: "FilledClass", classs, filledTypeParams }
+export function filledClass(classs, typeArgs) {
+  return { kind: "FilledClass", inner: classs, typeArgs }
 }
 // Used for organizing methods
+// TODO: Move to string
 export function getTypeName(userDefinedType) {
   if (userDefinedType.kind === "FilledClass") {
     string = filledClass.classs.name + "<";
-    for (p in filledClass.filledTypeParams) {
+    for (p in filledClass.typeArgs) {
       string = string + stringify(p); // should be struct, enum or class
     }
   } else {

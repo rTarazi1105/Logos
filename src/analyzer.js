@@ -1,4 +1,6 @@
 // Note on comments: "future" refers to a type that has been called but not defined (declared) yet
+// Note 2: Types and methods can be declared out of order, but class impl must be declared before use?
+// TODO: Remove field mapping
 
 import * as core from "../src/core.js";
 class Context {
@@ -75,11 +77,12 @@ class Context {
       superClasses = type.classes;
     }
     
-    for (let filledClass of superClasses) {
-      if (filledClass.classs.name === className) {
-        return true;
-      }
-      if lookupClass(className, filledClass) {
+    if (superClasses.containsKey(className)) {
+      return true;
+    }
+    
+    for (let filledClass of superClasses.values()) {
+      if (lookupClass(className, filledClass)) {
         return true;
       }
     }
@@ -88,6 +91,23 @@ class Context {
     // this.parent.lookupClass(className, type)
     
     return false;
+  }
+  
+  getClass(className, type) {
+    let superClasses = this.classes.get(type);
+    if (type.kind === "TypeParameter") {
+      superClasses = type.classes;
+    }
+    
+    for (let [name, filledClass] of superClasses) {
+      if (name === className) {
+        return filledClass;
+      }
+      const getSuperClass = getClass(className, filledClass);
+      if (getSuperClass != null) {
+        return getSuperClass;
+      }
+    }
   }
 
   static root() {
@@ -251,14 +271,14 @@ export default function analyze(match) {
   function equivalent(t1, t2) {
     return (
       t1 === t2 ||
-      (t1?.kind == t2?.kind &&
+      (t1?.kind === t2?.kind &&
         ((t1?.kind === "ArrayType" &&
           t1?.len === t2?.len &&
           equivalent(t1.baseType, t2.baseType)) ||
           (t1?.kind === "ListType" && equivalent(t1.baseType, t2.baseType)) ||
           (t1?.kind === "ActionType" &&
             equivalent(t1.returnType, t2.returnType)) ||
-          (t1?.number == t2?.number &&
+          (t1?.number === t2?.number &&
             (t1?.kind === "RelationType" ||
               t1?.kind === "OperationType" ||
               t1?.kind === "RelationArgType" ||
@@ -294,9 +314,9 @@ export default function analyze(match) {
 
   function typeDescription(type) {
     if (typeof type === "string") return type;
-    if (type.kind == "Struct" || type.kind == "Enum") return type.name;
-    if (type.kind == "ArrayType") return `[${typeDescription(type.baseType)}]`;
-    if (type.kind == "ListType")
+    if (type.kind === "Struct" || type.kind === "Enum") return type.name;
+    if (type.kind === "ArrayType") return `[${typeDescription(type.baseType)}]`;
+    if (type.kind === "ListType")
       return `List[${typeDescription(type.baseType)}]`;
   }
 
@@ -360,12 +380,12 @@ export default function analyze(match) {
     }
   }
 
-  function includesAsFilledTypeParam(filledClass, typeName) {
-    return filledClass.filledTypeParams.some(
+  function includesTypeArg(filledClass, typeName) {
+    return filledClass.typeArgs.some(
       (validType) =>
         validType?.name === typeName ||
         (validType?.kind === "FilledClass" &&
-          includesAsFilledTypeParam(validType, typeName))
+          includesTypeArg(validType, typeName))
     );
   }
 
@@ -382,7 +402,7 @@ export default function analyze(match) {
     );
 
     must(
-      !includesAsFilledTypeParam(filledClass, validType.name),
+      !includesTypeArg(filledClass, validType.name),
       "Cannot include self in type parameters",
       at
     );
@@ -439,11 +459,10 @@ export default function analyze(match) {
       filledStructRep = filledStruct.rep();
       assignablesRep = assignables.asIteration().children.map(a => a.rep());
       
-      if filledStructRep.struct.fields == null {
+      if (filledStructRep.inner.fields == null) {
         // Future
       } else {
-        mustHaveLength(assignablesRep, filledStructRep.struct.fields.length, { at: filledStruct });
-        
+        mustHaveEqualLength(assignablesRep, filledStructRep.inner.fields, { at: filledStruct });
       }
       
       return core.construct(filledStructRep, assignablesRep)
@@ -703,19 +722,19 @@ export default function analyze(match) {
       }
       return enumeration;
     },
-    FilledStruct(id, filledTypeParams) {
+    FilledStruct(id, typeArgs) {
       const struct = id.rep();
       context = context.newChildContext({inLoop: false, inData: false, module: struct.typeParams});
-      const filledTypeParamsRep = filledTypeParams.rep();
+      const typeArgsRep = typeArgs.rep();
       context = context.parent;
-      return core.filledStruct(struct, filledTypeParamsRep);
+      return core.filledStruct(struct, typeArgsRep);
     },
-    FilledEnum(id, filledTypeParams) {
+    FilledEnum(id, typeArgs) {
       const enumeration = id.rep();
       context = context.newChildContext({inLoop: false, inData: false, module: enumeration.typeParams});
-      const filledTypeParamsRep = filledTypeParams.rep();
+      const typeArgsRep = typeArgs.rep();
       context = context.parent;
-      return core.filledEnum(enumeration, filledTypeParamsRep);
+      return core.filledEnum(enumeration, typeArgsRep);
     },
 
     VarField(id, _dot, fieldId) {
@@ -739,7 +758,7 @@ export default function analyze(match) {
           
           let casee = enumeration.cases.find((c) => c.name === fieldStr);
           
-          if casee == null {
+          if (casee == null) {
             if (enumeration.typeParams == null) {
               // Future so cases are mutable
               casee = core.field(fieldStr, null);
@@ -758,70 +777,40 @@ export default function analyze(match) {
         const variable = context.lookup(idStr);
         mustBeKindK(variable, "Variable", { at: id });
         
-        if variable.type?.kind === "FilledStruct" || variable.type?.kind === "FilledClass" {
+        if (variable.type?.kind === "FilledStruct" || variable.type?.kind === "FilledClass") {
           
+          const field = variable.type.inner.fields.find((f) => f.name === fieldName);
+          if (field == null) {
+            //mustHaveField
+            must(false, "No such field", { at: id });
+          }
+          return core.varField(variable, field);
           
         } else {
           // Must be list index
-          mustHaveClass(variable, "Collection", { at: id });
+          //mustHaveClass(variable, "Collection", { at: id });
+          const collectionClass = context.getClass("Collection", variable.type);
+          if (collectionClass == null) {
+            must(false, "Expected type to be collection", { at: id });
+          }
+          mustHaveLength(collectionClass.typeArgs, 1, { at: id });
+          const baseType = collectionClass.typeArgs[0];
+          
           // TODO: ArrayType and ListType auto-impl Collection
           
-          let number = Number(fieldStr);
+          const number = Number(fieldStr);
           must(Number.isInteger(number), "List index is not numeric", { at: id });
           
-          return core.varIndex(
-        }
-      }
-      
-      const variable = context.lookup(id.sourceString);
-      fieldName = fieldId.sourceString;
-      if (variable == null) {
-        // Assume tbd enum - future
-        id = id.sourceString;
-        const newField = core.field(fieldName, null);
-        const enumeration = core.enumeration(id, [newField]); // Future
-        context.add(id, enumeration);
-        
-        return core.enumCase(enumeration, field);
-        
-      } else {
-        let field = variable.fields.find((f) => f.name === fieldName);
-        if (field == null) {
-          if variable.kind === "Enum" { // Future
-            newField = core.field(fieldName, null);
-            variable.fields.push(
-          }
-        }
-      }
-      
-      
-      
-       else {
-        //mustHaveField(variable, field, { at: id } )
-        const field = variable.fields.find((f) => f.name === field); // Can be an enum
-        if (field == null) {
-          if (variable.kind === "Enum") {
-            // Future
-            newField = core.field(field, null);
-            enumeration.fields.push(core.field(field, null));
-            field = 
-          }
-          
-        }
-
-        if (variable.kind === "Enum") {
-          return core.enumCase(variable, field);
-        } else {
-          return core.varField(variable, field);
+          return core.varIndex(variable, number, baseType);
         }
       }
     },
 
     // Section: Struct, enum, types
-    FilledTypeParams(_leftAngle, types, _rightAngle) {
+    TypeArgs(_leftAngle, types, _rightAngle) {
       let typeParams = context.module;
       
-      if typeParams == null {
+      if (typeParams == null) {
         // Struct, enum, or class has not been defined yet
         // we assume it will be later
         throw new Error("TODO");
@@ -853,7 +842,7 @@ export default function analyze(match) {
       }
       return typesRep;
     },
-    FilledClass(declaredClass, filledTypeParams) {
+    FilledClass(declaredClass, typeArgs) {
       const classs = declaredClass.rep();
       
       // Use context for type parameters
@@ -862,10 +851,10 @@ export default function analyze(match) {
         inData: false,
         module: classs.typeParams, // Future: may be null
       });
-      const params = filledTypeParams.rep();
+      const typeArgsRep = typeArgs.rep();
       context = context.parent;
       
-      return core.classFilledWithParam(classs, params);
+      return core.filledClass(classs, typeArgsRep);
     },
     SuperClass(_colon, classes) {
       return classes.asIteration().children.map((c) => c.rep());
@@ -915,10 +904,10 @@ export default function analyze(match) {
       // can be null
       const superClassRep = superClass.rep();
       for (let filledClass in superClassRep) {
-        if (filledClass.classs.modules != []) {
+        if (filledClass.inner.modules != []) {
           must(false, "Class has modules, use impl instead", { at: id });
         }
-        mustMapFields(struct, filledClass.classs);
+        mustMapFields(struct, filledClass.inner);
         context.classify(filledClass, struct);
       }
 
@@ -1208,8 +1197,11 @@ export default function analyze(match) {
       let idStr = id.sourceString;
       let impl = context.module;
 
-      mustHaveField(impl.classs, idStr);
-      let classField = impl.classs.fields.find((f) => f.name === idStr);
+      //mustHaveField(impl.filledClass, idStr);
+      let classField = impl.filledClass.inner.fields.find((f) => f.name === idStr);
+      if (classField == null) {
+        must(false, "No such field", { at: id });
+      }
 
       let typeField = null;
       if (respectiveParam != null) {
