@@ -14,26 +14,29 @@ Logos {
 		
 		
 	Statement
-		= ParenStatement
-		| Bool
+		= bool
 		| Equality
 		| FilledInfix
-		| FilledRelationOpOrProp
+		| FilledOperation
+		| FilledRelationOrProp
 		| Negation
 		| DataVar
+		| ParenStatement
 	ParenStatement = "(" Statement ")"
 	Negation = "not" Statement
 	
-	FilledRelationOpOrProp = DataVar "[" ListOf<DataVar, ","> "]"
+	FilledOperation = DataVar "[" ListOf<Statement, ","> "]"
+	
+	FilledRelationOrProp = DataVar "[" ListOf<DataVar, ","> "]"
 	
 	FilledInfix = Statement Infix Statement				// only works on binary operations
 	
 	Equality = DataVar "=" DataVar
 	
 	Infix
-		= DefaultInfix
+		= defaultInfix
 		| UserDefinedInfix
-	DefaultInfix
+	defaultInfix
 		= "and"							// and
 		| "or"							// or
 		| "=="							// equals for statements
@@ -50,17 +53,17 @@ Logos {
 		
 	ValueDecl = "value" id1 (":" DataVar)?
 	RelationDecl = id1 ":" ListOf<id1, ","> ":" Statement
-	OperationDecl = OperationWord id2 ":" ListOf<id1, ","> ":" Statement
+	OperationDecl = operationWord id2 ":" ListOf<id1, ","> ":" Statement
 	InfixDecl = "infix" id2 Operation
-	PropertyDecl = PropertyWord id1 ":" ListOf<ArgRelation, ","> ":" Statement
+	PropertyDecl = propertyWord id1 ":" ListOf<ArgRelation, ","> ":" Statement
 	ArgRelation = id1 Numbering
 	StatementDecl = id1 ":" Statement
-	Assume = "assume" id1? Bool ":" Statement
+	Assume = "assume" id1? bool ":" Statement
 	
 	Numbering = "<" number ">"
 	
-	StructDecl = "struct" id2 TypeParam? "{" ListOf<Param, ","> "}" 
-	EnumDecl = "enum" id2 TypeParam? "{" ListOf<Param, ","> "}"
+	StructDecl = "struct" id3 TypeParam? "{" ListOf<Param, ","> "}" 
+	EnumDecl = "enum" id3 TypeParam? "{" ListOf<Param, ","> "}"
 	
 	ModDecl = "mod" id2 ModHead ModBody
 	ModHead = TypeParam? "(" ListOf<ModParamWithSelf, ","> ")" ReturnType?
@@ -70,49 +73,49 @@ Logos {
 	
 	ModParamWithSelf = ModParam | SelfParam
 	
-	ReturnType = "->" Mutable? ValidType
+	ReturnType = "->" mut? ValidType
 	
-	ClassDecl = "class" id2 TypeParam? SuperClass? ClassBody
-	SuperClass = ":" ListOf<FilledClass, "+">
+	ClassDecl = "class" id3 TypeParam? SuperClass? ClassBody
+	SuperClass = ":" ListOf<FilledCustomType, "+">
 	ClassBody = "{" ClassMod* "}"
 	ClassMod = "mod" id2 ModHead ModBodyOrColon
 	ModBodyOrColon = ModBody | ";"
 	
-	ClassImpl = FilledCustomType "impl" FilledClass ClassBody
+	ClassImpl = FilledCustomType "impl" FilledCustomType ClassBody
 	
 	TypeParam = "<" ListOf<IdAndSuperClass, ","> ">"		// no superclass = Any
 	IdAndSuperClass = id3 SuperClass?
 	TypeArgs = "<" ListOf<ValidType, ","> ">"	// FilledTypeParam
 	
 	Param = (id2 ":")? ValidType				// if no id: let it be 0,1 etc
-	SelfParam = Mutable? "self"
-	ModParam = id2 ":" Mutable? ValidType
-	Mutable = "mut"
+	SelfParam = mut? "self"
+	ModParam = id2 ":" mut? ValidType
 	
 	ValidType
-		= DefaultValidType
+		= defaultValidType
+		| NumberedRelation
 		| ArrayType
 		| FilledCollection
 		| FilledCustomType
-	FilledCollection = CollectionClass TypeArgs?
+	FilledCollection = collectionClass TypeArgs?
 	FilledCustomType = CustomType TypeArgs?
 	
-	DefaultValidType
+	defaultValidType
 		= "value"
 		| "statement"
-		| NumberedRelation
-		| OperationWord
-		| PropertyWord
+		| operationWord
+		| propertyWord
 		| "bool"
 		| "int"
-		| SelfType
-		| NoneType
-		| ErrorClass
-		| ComparableClass
-		| EquatableClass
+		| selfType
+		| noneType
+		| errorClass
+		| comparableClass
+		| equatableClass
+	operationWord = "operation" | "op"
+	propertyWord = "property" | "prop"
+	
 	NumberedRelation = "relation" Numbering?
-	OperationWord = "op " | "operation "
-	PropertyWord = "prop " | "property "
 	ArrayType = "[" ValidType ";" number? "]"
 	
 	ModBody = "{" ActionLine* "}"
@@ -128,27 +131,28 @@ Logos {
 		| ContinueLine
 		| MethodCall
 		| ModCall
-	MethodCall = Variable "." id2 Call
+	MethodCall = VarOrType "." id2 Call
+	VarOrType = Variable | FilledCustomType
 	ModCall = id2 Call
 	Call = "(" ListOf<Readable, ","> ")"
 	
 	Assignment = Variable "=" Readable
 	Readable = Construct | Literal | ControlFlow | LogosArray | Variable
-	Construct = FilledStruct "{" ListOf<Readable, ","> "}"
+	Construct = FilledCustomType "{" ListOf<Readable, ","> "}"
 	Increment = Variable "++"
 	Decrement = Variable "--"
 	
 	BreakLine = break+
 	ContinueLine = continue+
 	
-	Return = ReturnOrYield Readable?
-	ReturnOrYield = "return" | "yield"
+	Return = returnOrYield Readable?
+	returnOrYield = "return" | "yield"
 	
 	EvalBool
 		= And
 		| Or
 		| Not
-		| Bool
+		| bool
 		| InEqualities
 		| Variable		// will need to add statement.truth
 	And = EvalBool1 "&" EvalBool2
@@ -191,27 +195,27 @@ Logos {
 	VarField = Variable "." Field				// field, list index, enum case
 	
 	Literal
-		= Bool
+		= bool
 		| number
 		| none
-		| String
-	String = "\"" char* "\""
+		| string
+	string = "\"" char* "\""
 	char = ~"\"" any
-	Bool = true | false
+	bool = true | false
 	
 	number = digit+
 	id1 = ~keyword idchar+					// data in header can start with a number
-	id2 = ~keyword idletter idchar*				// variables, modules etc
+	id2 = ~keyword idletter idchar*				// variables, modules etc; must be lowercase
 	id3 = ~keyword upper idchar*				// types must be capitalized
 	idchar = alnum | "_"
-	idletter = letter | "_"
+	idletter = ~upper letter | "_"
 	keyword = key " " // ~alnum
 	key
-		= Bool
-		| Mutable
-		| DefaultValidType
-		| DefaultInfix
-		| ReturnOrYield
+		= bool
+		| mut
+		| defaultValidType
+		| defaultInfix
+		| returnOrYield
 		| none
 		| "infix"
 		| "struct"
@@ -233,33 +237,32 @@ Logos {
 	//	| "len"
 	
 	
-	DataVar = Variable | id1
+	DataVar = Variable | id1	// Can be a variable only if in mod
 	Operation = Variable
 	UserDefinedInfix = id2
-	
-	DeclaredStatement = Variable | id1
-	Relation = Variable | id1
-	Property = Variable | id1
-	Value = Variable | id1
 	
 	CustomType = id3			// struct, enum or class
 	AssignedVariable = id2
 	Field = id2 | number
 	
+	mut = "mut"
 	none = "none"
 	true = "true"
 	false = "false"
+	match = "match"
 	if = "if"
+	then = "then"
 	else = "else"
-	do = "do"
-	in = "in"
 	while = "while"
+	for = "for"
+	in = "in"
+	do = "do"
 	break = "break"
 	continue = "continue"
-	SelfType = "Self"
-	NoneType = "None"
-	ErrorClass = "Error"
-	ComparableClass = "Comparable"
-	EquatableClass = "Equatable"
-	CollectionClass = "Collection"
+	selfType = "Self"
+	noneType = "None"
+	errorClass = "Error"
+	comparableClass = "Comparable"
+	equatableClass = "Equatable"
+	collectionClass = "Collection"
 }

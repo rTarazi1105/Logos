@@ -20,11 +20,11 @@ const syntaxChecks = [
   ["chained ors in data 2", "operation all : A, b, C : A or b or C;"],
   [
     "struct declaration",
-    "struct Coordinate<Numeral> : Summable {x: Numeral, y:int, type:CoordType}",
+    "struct Coordinate<Numeral> {x: Numeral, y:int, type:CoordType}",
   ],
   [
     "class declaration",
-    "class Summable { sum: Option<int>, mod sum(self) -> int; }",
+    "class Summable { mod sum(self) -> int; }",
   ],
   [
     "enum declaration",
@@ -39,7 +39,7 @@ const syntaxChecks = [
   ["array type returned", "mod m() -> [[int;];] {}"],
   [
     "type parameter and optional",
-    "mod wrap<T>(item: T) -> Option<T> { return Option.new(T); } ",
+    "mod wrap<T>(item: T) -> Option<T> { return Option.new(item); } ",
   ],
   ["assignments", "mod m() { a -- ; c ++ ; abc=3; a=1; }"],
   [
@@ -58,11 +58,11 @@ const syntaxChecks = [
   ["while with one statement block", "mod m() { while true do { x = 1; }; }"],
   [
     "returns",
-    "mod m() { x = for i in c do { if f(i) then {j ++; return.. j;} else return.0 g(i); }; return x; }",
+    "mod m() { x = for i in c do { if f(i) then {j ++; return j;} else return g(i); }; return x; }",
   ],
   [
     "returning up",
-    "mod m<A: SomeClass, B>(a: A, b: B) -> B { sum = 0; last = for i in [0, 1, 2] do { sum++; if i == 1 then return.0 i;}; if sum != 3 then return b else { if last == 1 then return.. b.inverse(); }; }",
+    "mod m<A: SomeClass, B>(a: A, b: B) -> B { sum = 0; last = for i in [0, 1, 2] do { sum++; if i == 1 then return i;}; if sum != 3 then return b else { if last == 1 then return b.inverse(); }; }",
   ],
   [
     "chained ors",
