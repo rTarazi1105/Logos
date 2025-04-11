@@ -14,22 +14,21 @@ Logos {
 		
 		
 	Statement
-		= Bool
+		= ParenStatement
+		| Bool
 		| Equality
 		| FilledInfix
-		| FilledRelation
-		| FilledOperation
-		| FilledProperty
+		| FilledRelationOpOrProp
 		| Negation
-		| DeclaredStatement
-		| ParenStatement
+		| DataVar
 	ParenStatement = "(" Statement ")"
 	Negation = "not" Statement
-	FilledRelation = Relation "[" ListOf<Value, ","> "]"
-	FilledOperation = Operation "[" ListOf<Statement, ","> "]"
+	
+	FilledRelationOpOrProp = DataVar "[" ListOf<DataVar, ","> "]"
+	
 	FilledInfix = Statement Infix Statement				// only works on binary operations
-	FilledProperty = Property "[" ListOf<Relation, ","> "]"
-	Equality = Value "=" Value
+	
+	Equality = DataVar "=" DataVar
 	
 	Infix
 		= DefaultInfix
@@ -49,11 +48,9 @@ Logos {
 		| StatementDecl
 		| Assume
 		
-	ValueDecl = "value" id1 (":" Relation)?
-	RelationDecl = id1 ":" ListOf<ArgValue, ","> ":" Statement
-	ArgValue = id1
-	OperationDecl = OperationWord id2 ":" ListOf<ArgStatement, ","> ":" Statement
-	ArgStatement = id1
+	ValueDecl = "value" id1 (":" DataVar)?
+	RelationDecl = id1 ":" ListOf<id1, ","> ":" Statement
+	OperationDecl = OperationWord id2 ":" ListOf<id1, ","> ":" Statement
 	InfixDecl = "infix" id2 Operation
 	PropertyDecl = PropertyWord id1 ":" ListOf<ArgRelation, ","> ":" Statement
 	ArgRelation = id1 Numbering
@@ -236,11 +233,12 @@ Logos {
 	//	| "len"
 	
 	
+	DataVar = Variable | id1
+	Operation = Variable
+	UserDefinedInfix = id2
 	
 	DeclaredStatement = Variable | id1
 	Relation = Variable | id1
-	Operation = Variable
-	UserDefinedInfix = id2
 	Property = Variable | id1
 	Value = Variable | id1
 	
@@ -258,6 +256,7 @@ Logos {
 	while = "while"
 	break = "break"
 	continue = "continue"
+	SelfType = "Self"
 	NoneType = "None"
 	ErrorClass = "Error"
 	ComparableClass = "Comparable"
