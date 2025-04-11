@@ -21,8 +21,8 @@ export const stringType = { kind: "StringType" }
 export const voidType = { kind: "VoidType" }
 export const anyType = { kind: "AnyType" }
 
-export function assignment(variable, assignable) {
-  return { kind: "Assignment", variable, assignable }
+export function assignment(variable, readable) {
+  return { kind: "Assignment", variable, readable }
 }
 
 export function returnType(mutable, type) {
@@ -61,8 +61,12 @@ export function module(name, typeParams, params, returnType, body) {
     params,
     body,
     type: moduleType(
+      /*
       (Array.isArray(params) ? params : []).map((p) => p.mutable),
       (Array.isArray(params) ? params : []).map((p) => p.type),
+      */
+      params.map(p) => p.mutable,
+      params.map(p) => p.type,
       returnType
     ),
   };
@@ -203,11 +207,8 @@ export function statementDeclaration(statement) {
 
 // Actions
 
-export function action(innerAction, type) {
-  return { kind: actionType(type), innerAction }
-}
-export function actionType(returnType) {
-  return { kind: "ActionType", returnType }
+export function action(innerAction, returnType) {
+  return { kind: "Action", innerAction, returnType }
 }
 
 // assignment() above
@@ -232,16 +233,16 @@ export const breakLine = { kind: "Break" }
 export const continueLine = { kind: "Continue"}
 
 // Variable constructors
-export function construct(filledStruct, assignables) {
-  return { kind: "Struct", assignables, type: filledStruct }
+export function construct(filledStruct, readables) {
+  return { kind: "Struct", readables, type: filledStruct }
 }
 
-export function methodCall(variable, method, assignable) {
-  return { kind: "MethodCall", variable, method, assignable, type: method.returnType}
+export function methodCall(variable, method, readable) {
+  return { kind: "MethodCall", variable, method, readable, type: method.type.returnType}
 }
 
-export function modCall(mod, assignable) {
-  return { kind: "ModCall", mod, assignable, type: mod.returnType}
+export function modCall(mod, readable) {
+  return { kind: "ModCall", mod, readable, type: mod.type.returnType}
 }
 
 export function inEquality(variable1, variable2, comparison) {
@@ -279,14 +280,14 @@ export function listType(baseType) {	// array but growable
   return { kind: "ListType", baseType }
 }
 
-export function logosArray(len, contents) {
-  return { type: arrayType(contents[0].type, len), contents }
+export function logosArray(contents) {
+  return { type: arrayType(contents[0].type, contents.length), contents }
 }
 export function emptyArray() {
   return { type: arrayType(null, 0), [] }
 }
-export function list(assignables) {
-  return { type: listType(assignables[0].type), assignables }
+export function list(readables) {
+  return { type: listType(readables[0].type), readables }
 }
 export function emptyList(type) {
   return { type: listType(type), [] }
@@ -314,6 +315,8 @@ export function matchLine(condition, action) { // condition can be type or "if"
 export function matchConditionType(typeToMatch) {
   return { kind: "MatchConditionType", typeToMatch, type: boolType }
 }
+
+export function breakLine(
 
 
 // Standard operations
@@ -430,14 +433,22 @@ const equalOp = operation("equal1234567890", ["A","B"], equalStatement("A","B"))
       [listBaseType],
       [field("0", listType(listBaseType))]
     );
-    listStruct.methods.push(method(
+    listStruct.methods.push(module(
       "new",
       [],
-      []
-    ))
+      [],
+      null,
+      null
+    ));
+    listStruct.methods[0].type.returnType = listStruct;
+
+// Literals
+export function nullObject() { 
+  return { type: voidType }
+}
 
 
-const anyToVoidType = moduleType([anyType], voidType)
+const anyToVoidType = moduleType([anyType], voidType);
 
 export const standardLibrary = Object.freeze({
   int: intType,
@@ -457,5 +468,5 @@ export const standardLibrary = Object.freeze({
 })
 
 String.prototype.type = stringType
-BigInt.prototype.type = intType
+Number.prototype.type = intType
 Boolean.prototype.type = boolType

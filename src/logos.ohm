@@ -32,10 +32,12 @@ Logos {
 	Equality = Value "=" Value
 	
 	Infix
+		= DefaultInfix
+		| UserDefinedInfix
+	DefaultInfix
 		= "and"							// and
 		| "or"							// or
 		| "=="							// equals for statements
-		| UserDefinedInfix
 	
 	DataDeclLine = DataDecl ";"
 	DataDecl
@@ -83,7 +85,7 @@ Logos {
 	
 	TypeParam = "<" ListOf<IdAndSuperClass, ","> ">"		// no superclass = Any
 	IdAndSuperClass = id3 SuperClass?
-	TypeArgs = "<" ListOf<ValidType, ","> ">"
+	TypeArgs = "<" ListOf<ValidType, ","> ">"	// FilledTypeParam
 	
 	Param = (id2 ":")? ValidType				// if no id: let it be 0,1 etc
 	SelfParam = Mutable? "self"
@@ -91,27 +93,27 @@ Logos {
 	Mutable = "mut"
 	
 	ValidType
-		= "Self"
-		| "None"
-		| DefaultValidType
-		| NumberedRelation
+		= DefaultValidType
 		| ArrayType
-		| "Error"
-		| "Comparable"
-		| "Equatable"
 		| FilledCollection
 		| FilledCustomType
-	FilledCollection = "Collection" TypeArgs?
+	FilledCollection = CollectionClass TypeArgs?
 	FilledCustomType = CustomType TypeArgs?
 	
-	NumberedRelation = "relation" Numbering?
 	DefaultValidType
 		= "value"
 		| "statement"
+		| NumberedRelation
 		| OperationWord
 		| PropertyWord
 		| "bool"
 		| "int"
+		| SelfType
+		| NoneType
+		| ErrorClass
+		| ComparableClass
+		| EquatableClass
+	NumberedRelation = "relation" Numbering?
 	OperationWord = "op " | "operation "
 	PropertyWord = "prop " | "property "
 	ArrayType = "[" ValidType ";" number? "]"
@@ -125,25 +127,25 @@ Logos {
 		| Increment | Decrement
 		| Return
 		| ControlFlow
-		| "break"
-		| "continue"
+		| BreakLine
+		| ContinueLine
 		| MethodCall
 		| ModCall
-	MethodCall = Variable "." Method Call
-	ModCall = Mod Call
-	Call = "(" ListOf<Assignable, ","> ")"
+	MethodCall = Variable "." id2 Call
+	ModCall = id2 Call
+	Call = "(" ListOf<Readable, ","> ")"
 	
-	Assignment = Variable "=" Assignable
-	Assignable = Construct | Literal | ControlFlow | LogosArray | Variable
-	Construct = FilledStruct "{" ListOf<Assignable, ","> "}"
+	Assignment = Variable "=" Readable
+	Readable = Construct | Literal | ControlFlow | LogosArray | Variable
+	Construct = FilledStruct "{" ListOf<Readable, ","> "}"
 	Increment = Variable "++"
 	Decrement = Variable "--"
 	
-	Return = ReturnOrYield ReturnUp? Assignable?
+	BreakLine = break+
+	ContinueLine = continue+
+	
+	Return = ReturnOrYield Readable?
 	ReturnOrYield = "return" | "yield"
-	ReturnUp = DotNumber | DotDot
-	DotNumber = "." number
-	DotDot = ".."
 	
 	EvalBool
 		= And
@@ -151,35 +153,35 @@ Logos {
 		| Not
 		| Bool
 		| InEqualities
-		| Variable						// will need to add statement.truth
+		| Variable		// will need to add statement.truth
 	And = EvalBool1 "&" EvalBool2
 	Or = EvalBool1 "|" EvalBool2
 	Not = "!" EvalBool
 	EvalBool1 = EvalBool
 	EvalBool2 = EvalBool
 		
-	InEqualities = Assignable InEqual Assignable
+	InEqualities = Readable InEqual Readable
 	InEqual = "<" | ">" | "==" | "!="
 	
 	ControlFlow = IfFlow | MatchFlow | ForFlow | WhileFlow
-	IfFlow = "if" EvalBool "then" Action Else?
-	Else = "else" Action
-	ForFlow = "for" Arg "in" Collection "do" Action
+	IfFlow = if EvalBool then Action ElseFlow?
+	ElseFlow = else Action
+	ForFlow = for Arg in Collection do Action
 	Arg = id2
 	Collection = LogosArray | Variable
-	WhileFlow = "while" EvalBool "do" Action
-	MatchFlow = "match" Variable ":" ListOf<MatchLine, ",">
+	WhileFlow = while EvalBool do Action
+	MatchFlow = match Variable ":" ListOf<MatchLine, ",">
 	MatchLine = MatchStart "=>" Action
 	MatchStart
 		= ValidType
 		| IfEvalBool
-	IfEvalBool = "if" EvalBool
+	IfEvalBool = if EvalBool
 	
 	LogosArray						// range will be built-in. Count(int), Range(int, int).
 		= FullArray
 		| CopiedArray
-	FullArray = "[" ListOf<Assignable, ","> "]"
-	CopiedArray = "[" Assignable ";" Int "]"
+	FullArray = "[" ListOf<Readable, ","> "]"
+	CopiedArray = "[" Readable ";" Int "]"
 	Int
 		= number
 		| Variable
@@ -194,11 +196,11 @@ Logos {
 	Literal
 		= Bool
 		| number
-		| "none"
+		| none
 		| String
 	String = "\"" char* "\""
 	char = ~"\"" any
-	Bool = "true" | "false"
+	Bool = true | false
 	
 	number = digit+
 	id1 = ~keyword idchar+					// data in header can start with a number
@@ -206,52 +208,59 @@ Logos {
 	id3 = ~keyword upper idchar*				// types must be capitalized
 	idchar = alnum | "_"
 	idletter = letter | "_"
-	dot = "."
 	keyword = key " " // ~alnum
 	key
-		= "true" | "false"
-		| "mut"
-		| "none" | "None"
-		| "value"
-		| "statement"
-		| "operation" | "op"
-		| "property" | "prop"
-		| "bool"
-		| "int"
-		| "Error"
-		| "relation"
+		= Bool
+		| Mutable
+		| DefaultValidType
+		| DefaultInfix
+		| ReturnOrYield
+		| none
 		| "infix"
 		| "struct"
 		| "enum"
 		| "method"
 		| "mod"
-		| "if"
-		| "then"
-		| "else"
-		| "for"
-		| "in"
-		| "do"
-		| "or"
-		| "and"
-		| "not"
-		| "break"
-		| "continue"
-	//	| "len"
 		| "class"
 		| "impl"
+		| if
+		| then
+		| else
+		| for
+		| in
+		| do
+		| while
+		| "not"
+		| break
+		| continue
+	//	| "len"
 	
 	
 	
 	DeclaredStatement = Variable | id1
 	Relation = Variable | id1
-	Operation = Variable | id2
+	Operation = Variable
 	UserDefinedInfix = id2
 	Property = Variable | id1
 	Value = Variable | id1
 	
 	CustomType = id3			// struct, enum or class
-	Method = id2
-	Mod = id2
 	AssignedVariable = id2
 	Field = id2 | number
+	
+	none = "none"
+	true = "true"
+	false = "false"
+	if = "if"
+	else = "else"
+	do = "do"
+	in = "in"
+	while = "while"
+	break = "break"
+	continue = "continue"
+	NoneType = "None"
+	ErrorClass = "Error"
+	ComparableClass = "Comparable"
+	EquatableClass = "Equatable"
+	CollectionClass = "Collection"
 }

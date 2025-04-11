@@ -146,17 +146,21 @@ export default function analyze(match) {
   function mustHaveBeenFound(entity, name, at) {
     must(entity, `Identifier ${name} not declared`, at);
   }
+  
+  function mustBeTypeT(e, type, msg, at) {
+    must(e.type === type, msg, at);
+  }
 
   function mustBeInteger(e, at) {
-    must(e.type === core.intType, "Expected an integer", at);
+    mustBeTypeT(e, core.intType, "Expected an integer", at);
   }
 
   function mustBeBoolean(e, at) {
-    must(e.type === core.booleanType, "Expected a boolean", at);
+    mustBeTypeT(e, core.booleanType, "Expected a boolean", at);
   }
 
   function mustBeVoid(e, at) {
-    must(e.type === core.voidType, "Expected void", at);
+    mustBeTypeT(e, core.voidType, "Expected void", at);
   }
 
   function mustBeStatement(e, at) {
@@ -263,11 +267,6 @@ export default function analyze(match) {
     );
   }
 
-  function mustBeAssignable(e, at) {
-    // TODO
-    must(false, "Tbd", at);
-  }
-
   function equivalent(t1, t2) {
     return (
       t1 === t2 ||
@@ -321,6 +320,7 @@ export default function analyze(match) {
   }
 
   function mustBeAssignable(e, { toType: type }, at) {
+    must(false, "Tbd", at);
     const source = typeDescription(e.type);
     const target = typeDescription(type);
     const message = `Cannot assign a ${source} to a ${target}`;
@@ -459,23 +459,37 @@ export default function analyze(match) {
       return core.program(sections.children.map((s) => s.rep()));
     },
     
-    // Assignables
-    Construct(filledStruct, _brack1, assignables, _brack2) {
+    // Readables
+    Construct(filledStruct, _brack1, readables, _brack2) {
       filledStructRep = filledStruct.rep();
-      assignablesRep = assignables.asIteration().children.map(a => a.rep());
+      readablesRep = readables.asIteration().children.map(a => a.rep());
       
       if (filledStructRep.inner.fields == null) {
         // Future
       } else {
-        mustHaveEqualLength(assignablesRep, filledStructRep.inner.fields, { at: filledStruct });
+        mustHaveEqualLength(readablesRep, filledStructRep.inner.fields, { at: filledStruct });
       }
       
-      return core.construct(filledStructRep, assignablesRep)
+      return core.construct(filledStructRep, readablesRep)
     },
         // TODO Literal?
     
-    FullArray(_left, assignables, _right) {
-      
+    FullArray(_left, readables, _right) {
+      const contents = readables.asIteration().children.map(r => r.rep());
+      if contents.length === 0 {
+        return core.emptyArray();
+      } else {
+        return core.logosArray(contents);
+      }
+    }
+    CopiedArray(_left, readable, _colon, length, _right) {
+      let len = length.rep();
+      if len?.kind === "Variable" {
+        mustBeInteger(len);
+        len = len.contents;
+      }
+      const contents = Array(len).fill(readable.rep());
+      return core.logosArray(contents);
     }
     
 
@@ -1112,13 +1126,13 @@ export default function analyze(match) {
         module: mod,
       });
       context.add("Self", struct); // Self type
-      for (let param in mod.params) {
+      for (const param in mod.params) {
         if (param.name === "self") {
           param.type = struct;
         }
         context.add(param.name, param);
       }
-      for (let typeParam in mod.typeParams) {
+      for (const typeParam in mod.typeParams) {
         context.add(typeParam.name, typeParam);
       }
 
@@ -1205,6 +1219,7 @@ export default function analyze(match) {
     },
 
     // Actions
+    // TODO Check and redo
 
     ActionLine(action, _semicolon) {
       return action.rep();
@@ -1226,16 +1241,19 @@ export default function analyze(match) {
           return core.variableDeclaration(newVar);
         }
         
-        return core.assignment(variable, exprRep)
+        return core.assignment(variable, exprRep);
       }
     },
 
     MethodCall(id, _dot, id2, _rp) {
+      const idStr = id.sourceString;
       const method = context.lookup(id.sourceString);
       mustBeCallable(method, { at: id });
       mustHaveCorrectArgumentCount(args.children.length, method.params.length, {
         at: id,
       });
+      
+      // TODO: Fix MustBeAssignable
       args.children.forEach((arg, i) => {
         mustBeAssignable(
           arg.rep(),
@@ -1276,6 +1294,19 @@ export default function analyze(match) {
       mustBeMutable(variable, { at: id });
       return core.decrementVar(variable);
     },
+    
+    none(_) {
+      return core.nullObject;
+    }
+    true(_) {
+      return true;
+    }
+    false(_) {
+      return false;
+    }
+    number(_digits) {
+      return Number(this.sourceString);
+    }
   });
 
   return builder(match).rep();
