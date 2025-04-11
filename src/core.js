@@ -424,12 +424,17 @@ const equalOp = operation("equal1234567890", ["A","B"], equalStatement("A","B"))
     
     
     
-    
+    const listBaseType = typeParameter("T");
     const listStruct = struct(
       "List",
-      [typeParameter("T")],
-      [field("0", listType(
-    )
+      [listBaseType],
+      [field("0", listType(listBaseType))]
+    );
+    listStruct.methods.push(method(
+      "new",
+      [],
+      []
+    ))
 
 
 const anyToVoidType = moduleType([anyType], voidType)

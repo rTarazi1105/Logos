@@ -398,9 +398,9 @@ export default function analyze(match) {
       "Only user-defined types (struct, enum, class) can implement";
     must(typeof validType.name !== "undefined", userDefinedMsg, at);
     must(
-      validType.name !== "Class" ||
-        validType.name !== "Struct" ||
-        validType.name !== "Enum",
+      validType.name === "Class" ||
+        validType.name === "Struct" ||
+        validType.name === "Enum",
       userDefinedMsg,
       at
     );
@@ -474,7 +474,9 @@ export default function analyze(match) {
     },
         // TODO Literal?
     
-    FullArray() // TODO Arrays and List?
+    FullArray(_left, assignables, _right) {
+      
+    }
     
 
     // Data
@@ -1049,14 +1051,14 @@ export default function analyze(match) {
       context = context.parent;
       return core.moduleDeclaration(mod);
     },
-    
-    StructWithTypeParam(structId, typeParam) {
-      
-    }
 
-    MethodDecl(_mod, filledStructOrStruct, _dot, id, head, body) {
-      // Here, filledStruct can also be a normal 
-      const struct = filledStructOrStruct.rep();
+    MethodDecl(_mod, filledCustomType, _dot, id, head, body) {
+	// Unlike in most places, here:
+	// you can have mod Struct<T> for type parameter T
+	// and can have mod Struct<bool>
+	// Yet you cannot have mod Struct<T: Class>
+      const struct = filledCustomType.rep();
+      // TODO checks
 
       let idStr = id.sourceString;
       let contextualName = struct.name + "." + idStr;
@@ -1179,7 +1181,6 @@ export default function analyze(match) {
     ClassImpl(type, _impl, filledClass, body) {
       const typeRep = type.rep(); // TODO future: May be null
       const classRep = filledClass.rep(); // TODO future: May be null
-      mustBeImplementable(typeRep, classRep, { at: type });
       const impl = core.classImpl(typeRep, classRep, []);
       
       const contextualName = typeRep.name + ".impl." + core.getTypeName(classRep);

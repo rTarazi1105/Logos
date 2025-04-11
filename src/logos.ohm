@@ -67,11 +67,7 @@ Logos {
 	ModHead = TypeParam? "(" ListOf<ModParamWithSelf, ","> ")" ReturnType?
 	// OptModParams = ListOf<ModParam, ",">
 	
-	MethodDecl = "mod" FilledStructOrStruct "." id2 ModHead ModBody
-	FilledStructOrStruct
-		= FilledStruct
-		| StructWithTypeParam
-	StructWithTypeParam = Struct TypeParam?
+	MethodDecl = "mod" FilledCustomType "." id2 ModHead ModBody
 	
 	ModParamWithSelf = ModParam | SelfParam
 	
@@ -83,7 +79,7 @@ Logos {
 	ClassMod = "mod" id2 ModHead ModBodyOrColon
 	ModBodyOrColon = ModBody | ";"
 	
-	ClassImpl = ValidType "impl" FilledClass ClassBody
+	ClassImpl = FilledCustomType "impl" FilledClass ClassBody
 	
 	TypeParam = "<" ListOf<IdAndSuperClass, ","> ">"		// no superclass = Any
 	IdAndSuperClass = id3 SuperClass?
@@ -100,10 +96,14 @@ Logos {
 		| DefaultValidType
 		| NumberedRelation
 		| ArrayType
-		| FilledClass
-		| FilledStruct
-		| FilledEnum
-	FilledClass = DeclaredClass TypeArgs?
+		| "Error"
+		| "Comparable"
+		| "Equatable"
+		| FilledCollection
+		| FilledCustomType
+	FilledCollection = "Collection" TypeArgs?
+	FilledCustomType = CustomType TypeArgs?
+	
 	NumberedRelation = "relation" Numbering?
 	DefaultValidType
 		= "value"
@@ -248,14 +248,10 @@ Logos {
 	UserDefinedInfix = id2
 	Property = Variable | id1
 	Value = Variable | id1
-	FilledStruct = Struct TypeArgs?
-	Struct = id3
-	DeclaredClass = Class | "Error" | "Comparable" | "Equatable" | "Collection"
-	Class = id3
+	
+	CustomType = id3			// struct, enum or class
 	Method = id2
 	Mod = id2
-	FilledEnum = Enum TypeArgs?
-	Enum = id3
 	AssignedVariable = id2
 	Field = id2 | number
 }
