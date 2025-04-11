@@ -67,7 +67,12 @@ Logos {
 	ModHead = TypeParam? "(" ListOf<ModParamWithSelf, ","> ")" ReturnType?
 	// OptModParams = ListOf<ModParam, ",">
 	
-	MethodDecl = "mod" FilledStruct "." id2 ModHead ModBody
+	MethodDecl = "mod" FilledStructOrStruct "." id2 ModHead ModBody
+	FilledStructOrStruct
+		= FilledStruct
+		| StructWithTypeParam
+	StructWithTypeParam = Struct TypeParam?
+	
 	ModParamWithSelf = ModParam | SelfParam
 	
 	ReturnType = "->" Mutable? ValidType
@@ -129,7 +134,7 @@ Logos {
 	Call = "(" ListOf<Assignable, ","> ")"
 	
 	Assignment = Variable "=" Assignable
-	Assignable = Construct | Literal | ControlFlow | Array | Variable
+	Assignable = Construct | Literal | ControlFlow | LogosArray | Variable
 	Construct = FilledStruct "{" ListOf<Assignable, ","> "}"
 	Increment = Variable "++"
 	Decrement = Variable "--"
@@ -161,7 +166,7 @@ Logos {
 	Else = "else" Action
 	ForFlow = "for" Arg "in" Collection "do" Action
 	Arg = id2
-	Collection = Array | Variable
+	Collection = LogosArray | Variable
 	WhileFlow = "while" EvalBool "do" Action
 	MatchFlow = "match" Variable ":" ListOf<MatchLine, ",">
 	MatchLine = MatchStart "=>" Action
@@ -170,7 +175,7 @@ Logos {
 		| IfEvalBool
 	IfEvalBool = "if" EvalBool
 	
-	Array						// range will be built-in. Count(int), Range(int, int).
+	LogosArray						// range will be built-in. Count(int), Range(int, int).
 		= FullArray
 		| CopiedArray
 	FullArray = "[" ListOf<Assignable, ","> "]"

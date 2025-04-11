@@ -472,9 +472,9 @@ export default function analyze(match) {
       
       return core.construct(filledStructRep, assignablesRep)
     },
-        // Literal?
+        // TODO Literal?
     
-    
+    FullArray() // TODO Arrays and List?
     
 
     // Data
@@ -867,8 +867,8 @@ export default function analyze(match) {
     IdAndSuperClass(id, superclasses) {
       mustNotAlreadyBeDeclared(id.sourceString, { at: id });
       const idStr = id.sourceString;
-      let typeParam = core.typeParameter(idStr);
-      for (let classs in superclasses.rep()) {
+      const typeParam = core.typeParameter(idStr);
+      for (const classs in superclasses.rep()) {
         typeParam.classes.add(classs);
       }
       return typeParam;
@@ -1049,10 +1049,14 @@ export default function analyze(match) {
       context = context.parent;
       return core.moduleDeclaration(mod);
     },
+    
+    StructWithTypeParam(structId, typeParam) {
+      
+    }
 
-    MethodDecl(_mod, structId, _dot, id, head, body) {
-      let struct = context.lookup(structId.sourceString);
-      mustBeKindK(struct, "Struct", { at: structId });
+    MethodDecl(_mod, filledStructOrStruct, _dot, id, head, body) {
+      // Here, filledStruct can also be a normal 
+      const struct = filledStructOrStruct.rep();
 
       let idStr = id.sourceString;
       let contextualName = struct.name + "." + idStr;

@@ -4,18 +4,15 @@ export function program(sections) {
 
 // These are used to check things that are used before declaration
 // Namely, FilledStruct, FilledEnum, and FilledClass
-export function requireKind(name, kind) {
-  return { kind: "RequireKind", name, requiredKind: kind } // TODO delete, just add the struct, enum or class
-}
-export function requireStruct(structName, paramTypes) { // TODO delete this, can just add the struct
-  return { kind: "RequireStruct", structName, paramTypes }
-}
 export function requireType(name, type) { // FilledClass, FilledStruct, and FilledEnum can all be in ValidType
   return { kind: "RequireType", name, type }
 }
 export function requireMethod(object, methodName, paramTypes) { // Method could be for a class or struct
-  return { kind: "RequireMethod", object, methodName, paramTypes }
+  return { kind: "RequireMethod", object, methodName, paramTypes } // Or method could be not declared yet
 }
+// Futures that are not here because they are just added to context: Method, module, struct, enum, class
+// TODO Check futures whenever moving up to parent --> make futures local for methods and modules but not for types
+
 
 // Primitives
 export const boolType = { kind: "BoolType" }
@@ -277,15 +274,22 @@ export function enumCase(filledEnum, field) {
 export function arrayType(baseType, len) {
   return { kind: "ArrayType", baseType, len }
 }
+// TODO: Add List(array)
 export function listType(baseType) {	// array but growable
   return { kind: "ListType", baseType }
 }
 
-export function array(assignable, len) {
-  return { kind: arrayType(assignable.type, len), assignable }
+export function logosArray(len, contents) {
+  return { type: arrayType(contents[0].type, len), contents }
+}
+export function emptyArray() {
+  return { type: arrayType(null, 0), [] }
 }
 export function list(assignables) {
-  return { kind: listType(assignables[0].type), assignables }
+  return { type: listType(assignables[0].type), assignables }
+}
+export function emptyList(type) {
+  return { type: listType(type), [] }
 }
 
 // Control Flow
@@ -365,7 +369,6 @@ const equalOp = operation("equal1234567890", ["A","B"], equalStatement("A","B"))
         null
       )]
     );
-    // How deep does this go? Be careful maybe
     if (collectionClass.modules?.length >= 2) {
       if (collectionClass.modules[0].params?.length > 0) {
         collectionClass.modules[0].params[0].type = collectionClass;
@@ -418,6 +421,15 @@ const equalOp = operation("equal1234567890", ["A","B"], equalStatement("A","B"))
         eqModule.params[1].type = equatableClass;
       }
     }
+    
+    
+    
+    
+    const listStruct = struct(
+      "List",
+      [typeParameter("T")],
+      [field("0", listType(
+    )
 
 
 const anyToVoidType = moduleType([anyType], voidType)
