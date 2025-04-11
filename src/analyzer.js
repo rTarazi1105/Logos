@@ -375,7 +375,7 @@ export default function analyze(match) {
   }
 
   function mustImplAllModules(classImpl, classs, at) {
-    for (let [i, mod] of classs.modules.filter((m) => m.body != null)) {
+    for (const [i, mod] of classs.modules.filter((m) => m.body != null)) {
       mustHaveModule(classImpl, mod, at);
     }
   }
@@ -390,6 +390,10 @@ export default function analyze(match) {
   }
 
   function mustBeImplementable(validType, filledClass, at) {
+    if validType == null { // Future
+      return;
+    }
+    
     let userDefinedMsg =
       "Only user-defined types (struct, enum, class) can implement";
     must(typeof validType.name !== "undefined", userDefinedMsg, at);
@@ -400,7 +404,8 @@ export default function analyze(match) {
       userDefinedMsg,
       at
     );
-
+    
+    // For struct S and class C, cannot: S impl C<S>
     must(
       !includesTypeArg(filledClass, validType.name),
       "Cannot include self in type parameters",
@@ -694,13 +699,13 @@ export default function analyze(match) {
     DeclaredClass(id) {
       // Lookup local is ok, they can only be declared globally
       // Though if not found, assume it's declared later
-      const classs = context.lookup(id.sourceString);
+      const idStr = id.sourceString;
+      
+      let classs = context.lookup(idStr);
       if (classs == null) {
-        const id = id.sourceString;
         // Last two null show that it's assumed before declaration
-        // But empty list should remain
-        const classs = core.classs(id, null, null, null); // Future
-        context.add(id, classs);
+        classs = core.classs(idStr, null, null, null); // Future
+        context.add(idStr, classs);
       }
       return classs;
     },
@@ -885,7 +890,6 @@ export default function analyze(match) {
       _struct,
       id,
       typeParameters,
-      superClass,
       _leftBracket,
       parameters,
       _rightBracket
@@ -900,17 +904,6 @@ export default function analyze(match) {
       const struct = core.struct(idStr, typeParamsRep, []);
       context.add(idStr, struct);
 
-      // Auto-impl superclasses
-      // can be null
-      const superClassRep = superClass.rep();
-      for (let filledClass in superClassRep) {
-        if (filledClass.inner.modules != []) {
-          must(false, "Class has modules, use impl instead", { at: id });
-        }
-        mustMapFields(struct, filledClass.inner);
-        context.classify(filledClass, struct);
-      }
-
       // Analyze parameters with typeParams
       context = context.newChildContext({
         inLoop: false,
@@ -918,7 +911,7 @@ export default function analyze(match) {
         module: struct,
       });
       context.add("Self", struct);
-      for (let typeParam in typeParamsRep) {
+      for (const typeParam in typeParamsRep) {
         // Already checked mustNotAlreadyBeDeclared in IdAndSuperClass
         context.add(typeParam.name, typeParam);
       }
@@ -1062,11 +1055,13 @@ export default function analyze(match) {
       mustBeKindK(struct, "Struct", { at: structId });
 
       let idStr = id.sourceString;
-      mustNotAlreadyBeDeclared(idStr, { at: id });
+      let contextualName = struct.name + "." + idStr;
+      mustNotAlreadyBeDeclared(contextualName, { at: id });
+      context.add(contextualName, method); // Allow recursion
+      
       let mod = head.rep();
       mod.name = idStr;
       struct.methods.push(mod);
-      context.add(struct.name + "." + idStr, method); // Allow recursion
 
       context = context.newChildContext({
         inLoop: false,
@@ -1091,21 +1086,18 @@ export default function analyze(match) {
     },
 
     // Classes
-    ClassBody(_left, lines, _right) {
-      return lines.children.map((l) => l.rep());
-    },
-    // ClassLine
-    ClassField(param, _comma) {
-      return param.rep();
-    },
     ClassMod(_mod, id, head, body) {
-      let idStr = id.sourceString;
+      const idStr = id.sourceString;
+      const classs = context.module;
+      
+      const className = getTypeName(classs);
       mustNotAlreadyBeDeclared(idStr, { at: id });
 
-      let mod = head.rep();
+      const mod = head.rep();
       mod.name = idStr;
 
-      let classs = context.module;
+      
+      
       classs.modules.push(mod); // Recursion
 
       context = context.newChildContext({
@@ -1133,21 +1125,32 @@ export default function analyze(match) {
       context = context.parent;
       return core.moduleDeclaration(mod);
     },
+    
+    ClassBody(_left, classMods, _right) {
+      const mods = new Array();
+      for module in classMods.children {
+        const mod = module.Rep();
+        const contextualName = context.module.name + "." mod.name; // context.mod can be class or classImpl
+        mustNotAlreadyBeDeclared(contextualName, { at: classMods });
+        context.add(contextualName, mod);
+      }
+      mustBeDistinct(mods, "Modules must be distinct", { at: classMods });
+      return mods
+    }
 
     ClassDecl(_class, id, typeParameters, superClass, classBody) {
-      let idStr = id.sourceString;
+      const idStr = id.sourceString;
       mustNotAlreadyBeDeclared(idStr, { at: id });
 
       // can be null
-      let typeParamsRep = typeParameters.rep();
+      const typeParamsRep = typeParameters.rep();
 
       const classs = core.classs(idStr, typeParamsRep, [], []);
       context.add(idStr, classs);
 
       // can be null
-      let superClassRep = superClass.rep();
+      const superClassRep = superClass.rep();
       for (superClass in superClassRep) {
-        mustMapFields(classs, superClass);
         context.classify(superClass, classs);
       }
 
@@ -1157,69 +1160,27 @@ export default function analyze(match) {
         module: classs,
       });
       context.add("Self", classs);
-      for (let typeParam in typeParamsRep) {
+      for (const typeParam in typeParamsRep) {
         context.add(typeParam.name, typeParam);
       }
-
-      for (let line in classBody) {
-        let lineRep = line.rep();
-        if (lineRep.kind === "Field") {
-          classs.fields.push(lineRep);
-        } else if (lineRep.kind === "ModuleDeclaration") {
-          classs.modules.push(lineRep.module);
-        } else {
-          must(false, "Expected field or module in class", { at: id });
-        }
-      }
-
-      mustHaveDistinctFields(classs, { at: id });
-      mustHaveDistinctModules(classs, { at: id });
-      mustNotBeSelfContaining(classs, { at: id });
+      
+      // TODO: Check future?
+      classs.modules = classBody.rep();
+      //mustHaveDistinctModules(classs, { at: id });
 
       context = context.parent;
       return core.classDeclaration(classs);
     },
 
-    ClassImplBody(_left, lines, _right) {
-      return lines.children.map((l) => l.rep());
-    },
-    // ClassImplLine
-    ParamMap(_colon, id) {
-      let idStr = id.sourceString;
-      let impl = context.module;
-      mustHaveField(impl.type, idStr);
-      must(!(impl.type.kind === "Enum"), "Enum does not have fields", {
-        at: id,
-      });
-      return impl.type.fields.find((f) => f.name === idStr);
-    },
-    ClassImplField(id, respectiveParam, _comma) {
-      let idStr = id.sourceString;
-      let impl = context.module;
-
-      //mustHaveField(impl.filledClass, idStr);
-      let classField = impl.filledClass.inner.fields.find((f) => f.name === idStr);
-      if (classField == null) {
-        must(false, "No such field", { at: id });
-      }
-
-      let typeField = null;
-      if (respectiveParam != null) {
-        typeField = respectiveParam.rep();
-      }
-      mustBothHaveTheSameType(classField, typeField);
-
-      return core.fieldMapping(classField.name, typeField.name, typeField.type);
-    },
-
     ClassImpl(type, _impl, filledClass, body) {
-      let fieldsMap = [];
-      let modules = [];
-      let typeRep = type.rep();
-      let classRep = filledClass.rep();
+      const typeRep = type.rep(); // TODO future: May be null
+      const classRep = filledClass.rep(); // TODO future: May be null
       mustBeImplementable(typeRep, classRep, { at: type });
-      let impl = core.classImpl(typeRep, classRep, fieldsMap, modules);
-      context.add(typeRep.name + ".impl." + classRep.name, impl);
+      const impl = core.classImpl(typeRep, classRep, []);
+      
+      const contextualName = typeRep.name + ".impl." + core.getTypeName(classRep);
+      mustNotAlreadyBeDeclared(contextualName, { at: type });
+      context.add(contextualName, impl);
 
       context.classify(typeRep, classRep);
 
@@ -1228,27 +1189,10 @@ export default function analyze(match) {
         inData: false,
         module: impl,
       });
-
-      for (let line in body.rep()) {
-        if (line.kind === "FieldMapping") {
-          impl.fieldsMap.push(line);
-        } else if (line.kind === "ModuleDeclaration") {
-          mustHaveModule(impl, line.mod);
-          impl.modules.push(line.mod);
-        } else {
-          must(false, "Expected field or module in impl", { at: type });
-        }
-      }
-
-      // Check fields
-      mustBeDistinct(impl.fieldsMap, "Cannot duplicate field", { at: type });
+      
+      impl.modules = body.rep();
+      
       mustHaveDistinctModules(impl, { at: type });
-
-      must(
-        checkFieldMap(impl.fieldsMap, classRep.fields),
-        "Cannot map fields",
-        { at: type }
-      );
       mustImplAllModules(impl, classRep, { at: type });
 
       context = context.parent;

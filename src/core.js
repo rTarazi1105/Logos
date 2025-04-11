@@ -5,19 +5,16 @@ export function program(sections) {
 // These are used to check things that are used before declaration
 // Namely, FilledStruct, FilledEnum, and FilledClass
 export function requireKind(name, kind) {
-  return { kind: "RequireKind", name, requiredKind: kind }
+  return { kind: "RequireKind", name, requiredKind: kind } // TODO delete, just add the struct, enum or class
 }
-export function requireClass(name, className) {
-  return { kind: "RequireClass", name, className }
+export function requireStruct(structName, paramTypes) { // TODO delete this, can just add the struct
+  return { kind: "RequireStruct", structName, paramTypes }
 }
-export function requireStruct(name, paramTypes) {
-  return { kind: "RequireStruct", name, paramTypes }
-}
-export function requireType(name, type) {
+export function requireType(name, type) { // FilledClass, FilledStruct, and FilledEnum can all be in ValidType
   return { kind: "RequireType", name, type }
 }
-export function requireMethod(name, methodName, paramTypes) {
-  return { kind: "RequireMethod", name, methodName, paramTypes }
+export function requireMethod(object, methodName, paramTypes) { // Method could be for a class or struct
+  return { kind: "RequireMethod", object, methodName, paramTypes }
 }
 
 // Primitives
@@ -97,20 +94,14 @@ export function getTypeName(userDefinedType) {
   }
 }
 
-export function classs(name, typeParams, fields, modules) {	// auto-impl "
-  return { kind: "Classs", name, typeParams, fields, modules }
+export function classs(name, typeParams, modules) {	// auto-impl "
+  return { kind: "Classs", name, typeParams, modules }
 }
 
-export function classImpl(type, filledClass, fieldsMap, modules) {
-  return { kind: "ClassImpl", type, filledClass, fieldsMap, modules }
+export function classImpl(type, filledClass, modules) {
+  return { kind: "ClassImpl", name: type.name + ".impl." + getTypeName(filledClass), type, filledClass, modules }
 }
 	// Elements
-
-// Unused?
-export function fieldMapping(name, localName, type) { // first name is in class
-  return { kind: "FieldMapping", name, localName, type }
-}
-
 export function field(name, type) {	// or param
   return { kind: "Field", name, type }
 }

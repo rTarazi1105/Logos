@@ -60,7 +60,7 @@ Logos {
 	
 	Numbering = "<" number ">"
 	
-	StructDecl = "struct" id2 TypeParam? SuperClass? "{" ListOf<Param, ","> "}" 
+	StructDecl = "struct" id2 TypeParam? "{" ListOf<Param, ","> "}" 
 	EnumDecl = "enum" id2 TypeParam? "{" ListOf<Param, ","> "}"
 	
 	ModDecl = "mod" id2 ModHead ModBody
@@ -74,24 +74,14 @@ Logos {
 	
 	ClassDecl = "class" id2 TypeParam? SuperClass? ClassBody
 	SuperClass = ":" ListOf<FilledClass, "+">
-	ClassBody = "{" ClassLine* "}"
-	ClassLine
-		= ClassField
-		| ClassMod
-	ClassField = Param ","
+	ClassBody = "{" ClassMod* "}"
 	ClassMod = "mod" id2 ModHead ModBodyOrColon
 	ModBodyOrColon = ModBody | ";"
 	
-	ClassImpl = ValidType "impl" FilledClass ClassImplBody
-	ClassImplBody = "{" ClassImplLine* "}"
-	ClassImplLine
-		= ClassImplField
-		| ClassMod
-	ClassImplField = id2 ParamMap? ","
-	ParamMap = ":" id2
+	ClassImpl = ValidType "impl" FilledClass ClassBody
 	
 	TypeParam = "<" ListOf<IdAndSuperClass, ","> ">"		// no superclass = Any
-	IdAndSuperClass = id2 SuperClass?
+	IdAndSuperClass = id3 SuperClass?
 	TypeArgs = "<" ListOf<ValidType, ","> ">"
 	
 	Param = (id2 ":")? ValidType				// if no id: let it be 0,1 etc
