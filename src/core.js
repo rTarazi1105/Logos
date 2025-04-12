@@ -13,13 +13,31 @@ export function requireMethod(object, methodName, paramTypes) { // Method could 
 // Futures that are not here because they are just added to context: Method, module, struct, enum, class
 // TODO Check futures whenever moving up to parent --> make futures local for methods and modules but not for types
 
+// New solution for future
+export function customType(name) {
+  // TODO Whenever this is encountered, add it to the highest parent
+  return { kind: "CustomType", typeParams: [null], methods: [], cases: null, fields: null }
+  // Type.case --> add to cases + We know it's an enum
+  // mod m(arg: Type) { arg.field } --> add to fields + We know it's a struct
+  // For methods, it could be anything  
+  
+  // typeParams has to be a list of types that fulfill the classes hypothetically required by this customType
+  // Using [null] marks this as an undefined custom type
+}
+/*
+If we allow mods to be declared out of order, we lose type-checking (at least until the program is over)
+Therefore NO, mods must be declared before use
+However, types do not have to be declared before use
+Therefore, you can call a method before it is declared, if the type has not been declared yet
+*/
+
 
 // Primitives
-export const boolType = { kind: "BoolType" }
-export const intType = { kind: "IntType" }
-export const stringType = { kind: "StringType" }
-export const voidType = { kind: "VoidType" }
-export const anyType = { kind: "AnyType" }
+export const boolType = { kind: "BoolType", isType: true }
+export const intType = { kind: "IntType", isType: true }
+export const stringType = { kind: "StringType", isType: true }
+export const voidType = { kind: "VoidType", isType: true }
+export const anyType = { kind: "AnyType", isType: true }
 
 export function assignment(variable, readable) {
   return { kind: "Assignment", variable, readable }
@@ -75,31 +93,29 @@ export function module(name, typeParams, params, returnType, body) {
   };
 }
 
-export function filledStruct(struct, typeArgs) {
-  return { kind: "FilledStruct", inner: struct, typeArgs }
-}
-export function filledEnum(enumeration, typeArgs) {
-  return { kind: "FilledEnum", enumeration, typeArgs }
-}
-
-export function filledClass(classs, typeArgs) {
-  return { kind: "FilledClass", inner: classs, typeArgs }
+export function filledType(type, typeArgs) {
+  const filledType = { kind: "FilledType", inner: type, typeArgs, name: null };
+  const name = getTypeName(filledType);
+  filledType.name = name;
+  return filledType;
 }
 // Used for organizing methods
 // TODO: Move to string
 export function getTypeName(userDefinedType) {
-  if (userDefinedType.kind === "FilledClass") {
-    string = filledClass.classs.name + "<";
-    for (p in filledClass.typeArgs) {
-      string = string + stringify(p); // should be struct, enum or class
+  const string = "";
+  if (userDefinedType?.kind === "FilledType") {
+    string = filledClass.inner.name + "<";
+    for (const p in filledClass.typeArgs) {
+      string = string + getTypeName(p) + ","; // should be struct, enum or class
     }
+    string = string + ">";
   } else {
     return userDefinedType.name
   }
 }
 
 export function classs(name, typeParams, modules) {	// auto-impl "
-  return { kind: "Classs", name, typeParams, modules }
+  return { kind: "Class", name, typeParams, modules }
 }
 
 export function classImpl(type, filledClass, modules) {
@@ -155,7 +171,7 @@ export function property(name, relationArgs, statement) {	// relationArgs are nu
 }
 
 export function statement(name, innerStatement) {
-  return { kind: "Statement", statement: true, name, inner: innerStatement }
+  return { kind: "Statement", isStatement: true, name, inner: innerStatement }
 }
 
 
@@ -171,19 +187,19 @@ export function propertyType(number, argNumbers) {
 
 	// Statements
 export function equalityStatement(value1, value2) {
-  return { kind: "EqualityStatement", statement: true, value1, value2 }
+  return { kind: "EqualityStatement", isStatement: true, value1, value2 }
 }
 export function negationStatement(inner) {
-  return { kind: "Negation", statement: true, inner }
+  return { kind: "Negation", isStatement: true, inner }
 }
 export function filledRelation(relation, values) {
-  return { kind: "FilledRelation", statement: true, relation, values }
+  return { kind: "FilledRelation", isStatement: true, relation, values }
 }
 export function filledOperation(operation, statements) {
-  return { kind: "FilledOperation", statement: true, operation, statements }
+  return { kind: "FilledOperation", isStatement: true, operation, statements }
 }
 export function filledProperty(property, relations) {
-  return { kind: "FilledProperty", statement: true, property, relations }
+  return { kind: "FilledProperty", isStatement: true, property, relations }
 }
 	// Declarations
 export function valueDeclaration(value) {
@@ -240,12 +256,12 @@ export function construct(filledStruct, readables) {
   return { kind: "Struct", readables, type: filledStruct }
 }
 
-export function methodCall(variable, method, readable) {
-  return { kind: "MethodCall", variable, method, readable, type: method.type.returnType}
+export function methodCall(variable, method, args) {
+  return { kind: "MethodCall", variable, method, args, type: method.type.returnType}
 }
 
-export function modCall(mod, readable) {
-  return { kind: "ModCall", mod, readable, type: mod.type.returnType}
+export function modCall(mod, args) {
+  return { kind: "ModCall", mod, args, type: mod.type.returnType}
 }
 
 export function inEquality(variable1, variable2, comparison) {
@@ -321,20 +337,9 @@ export function matchConditionType(typeToMatch) {
 
 
 // Standard operations
-export function andStatement(s1, s2) {
-  return { kind: "AndStatement", statement: true, s1, s2 }
-}
-const andOp = operation("and1234567890", ["A","B"], andStatement("A","B"))
-
-export function orStatement(s1, s2) {
-  return { kind: "OrStatement", statement: true, s1, s2 }
-}
-const orOp = operation("or1234567890", ["A","B"], orStatement("A","B"))
-
-export function equalStatement(s1, s2) {
-  return { kind: "equalStatement", statement: true, s1, s2 }
-}
-const equalOp = operation("equal1234567890", ["A","B"], equalStatement("A","B"))
+const andInfix = infix("and",null);
+const orInfix = infix("or", null);
+const equalInfix = infix("==", null);
 
 
     const errorClass = classs(
@@ -444,13 +449,28 @@ const equalOp = operation("equal1234567890", ["A","B"], equalStatement("A","B"))
     ));
     listStruct.methods[0].type.returnType = listStruct;
 
+const strMod = module(
+  "str", 
+  [], 
+  [parameter("text", false, anyType)], 
+  stringType, 
+  null
+);
+const printMod = module(
+  "print", 
+  [], 
+  [parameter("text", false, stringType)], 
+  voidType,
+  null
+);
+
 // Literals
 export function nullObject() { 
   return { type: voidType }
 }
 
 
-const anyToVoidType = moduleType([anyType], voidType);
+//const anyToVoidType = moduleType([anyType], voidType);
 
 export const standardLibrary = Object.freeze({
   int: intType,
@@ -459,14 +479,17 @@ export const standardLibrary = Object.freeze({
   void: voidType,
   any: anyType,
   //print: intrinsicFunction("print", anyToVoidType),
-  "and": andOp,
-  "or": orOp,
-  "==": equalOp,
+  "and": andInfix,
+  "or": orInfix,
+  "==": equalInfix,
   "Error": errorClass,
   "Ordering": orderingEnum,
   "Comparable": comparableClass,
   "Equatable": equatableClass,
   "Collection": collectionClass,
+  "List": listStruct,
+  "str": strMod
+  "print": printMod, 
 })
 
 String.prototype.type = stringType

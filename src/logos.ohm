@@ -62,20 +62,23 @@ Logos {
 	
 	Numbering = "<" number ">"
 	
-	StructDecl = "struct" id3 TypeParam? "{" ListOf<Param, ","> "}" 
-	EnumDecl = "enum" id3 TypeParam? "{" ListOf<Param, ","> "}"
+	StructDecl = "struct" id3 TypeParams? "{" ListOf<Param, ","> "}" 
+	EnumDecl = "enum" id3 TypeParams? "{" ListOf<Param, ","> "}"
 	
 	ModDecl = "mod" id2 ModHead ModBody
-	ModHead = TypeParam? "(" ListOf<ModParamWithSelf, ","> ")" ReturnType?
+	ModHead = TypeParams? "(" ListOf<ModParamWithSelf, ","> ")" ReturnType?
 	// OptModParams = ListOf<ModParam, ",">
 	
-	MethodDecl = "mod" FilledCustomType "." id2 ModHead ModBody
+	MethodDecl = "mod" MethodType "." id2 ModHead ModBody
+	MethodType = CustomType TypeArgsOrParams?
+	TypeArgsOrParams = ListOf<TypeArgOrParam, ",">
+	TypeArgOrParam = ValidType | ATypeParam
 	
 	ModParamWithSelf = ModParam | SelfParam
 	
 	ReturnType = "->" mut? ValidType
 	
-	ClassDecl = "class" id3 TypeParam? SuperClass? ClassBody
+	ClassDecl = "class" id3 TypeParams? SuperClass? ClassBody
 	SuperClass = ":" ListOf<FilledCustomType, "+">
 	ClassBody = "{" ClassMod* "}"
 	ClassMod = "mod" id2 ModHead ModBodyOrColon
@@ -83,8 +86,9 @@ Logos {
 	
 	ClassImpl = FilledCustomType "impl" FilledCustomType ClassBody
 	
-	TypeParam = "<" ListOf<IdAndSuperClass, ","> ">"		// no superclass = Any
-	IdAndSuperClass = id3 SuperClass?
+	TypeParams = "<" ListOf<IdAndSuperClass, ","> ">"		// no superclass = Any
+	
+	IdAndSuperClass = ATypeParam SuperClass?
 	TypeArgs = "<" ListOf<ValidType, ","> ">"	// FilledTypeParam
 	
 	Param = (id2 ":")? ValidType				// if no id: let it be 0,1 etc
@@ -95,9 +99,7 @@ Logos {
 		= defaultValidType
 		| NumberedRelation
 		| ArrayType
-		| FilledCollection
 		| FilledCustomType
-	FilledCollection = collectionClass TypeArgs?
 	FilledCustomType = CustomType TypeArgs?
 	
 	defaultValidType
@@ -107,6 +109,7 @@ Logos {
 		| propertyWord
 		| "bool"
 		| "int"
+		| "string"
 		| selfType
 		| noneType
 		| errorClass
@@ -236,12 +239,12 @@ Logos {
 		| continue
 	//	| "len"
 	
-	
+	ATypeParam = id3
 	DataVar = Variable | id1	// Can be a variable only if in mod
 	Operation = Variable
 	UserDefinedInfix = id2
 	
-	CustomType = id3			// struct, enum or class
+	CustomType = collectionClass | id3			// struct, enum or class
 	AssignedVariable = id2
 	Field = id2 | number
 	

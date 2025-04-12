@@ -1,0 +1,17 @@
+"Error: Found errors in the action dictionary of the 'rep' operation:\n" +
+    "- 'ArgValue' is not a valid semantic action for 'Logos'\n" +
+    "- 'ArgStatement' is not a valid semantic action for 'Logos'\n" +
+    "- 'FilledProperty' is not a valid semantic action for 'Logos'\n" +
+    "- 'DeclaredStatement' is not a valid semantic action for 'Logos'\n" +
+    "- 'Relation' is not a valid semantic action for 'Logos'\n" +
+    "- 'Property' is not a valid semantic action for 'Logos'\n" +
+    "- 'Value' is not a valid semantic action for 'Logos'\n" +
+    "- 'DeclaredClass' is not a valid semantic action for 'Logos'\n" +
+    "- 'Struct' is not a valid semantic action for 'Logos'\n" +
+    "- 'Enum' is not a valid semantic action for 'Logos'\n" +
+    "- 'FilledStruct' is not a valid semantic action for 'Logos'\n" +
+    "- 'FilledEnum' is not a valid semantic action for 'Logos'\n" +
+    "- 'FilledClass' is not a valid semantic action for 'Logos'\n" +
+    "- Semantic action 'Return' has the wrong arity: expected 2, got 3"
+  
+
