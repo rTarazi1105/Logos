@@ -57,7 +57,7 @@ class Context {
   // Collection, Equatable, Comparable, Error
   // classes: Map<type, Map<string,class>>
   
-  // Why are classes indexed by string?
+  // Why are classes indexed by string? Bc:
   // We don't have Struct<T> impl Class<T> thankfully
   // If Struct impl Class<A>, Struct cannot impl Class<B>
   
@@ -67,8 +67,7 @@ class Context {
     }
     
     const typeEntry = this.classes.get(type);
-    if 
-    this.classes.get(type).add(filledClass);
+    typeEntry.set(type.name, type);
   }
   
   lookupClass(className, type) {
@@ -390,7 +389,7 @@ export default function analyze(match) {
   }
 
   function mustBeImplementable(validType, filledClass, at) {
-    if validType == null { // Future
+    if (validType == null) { // Future
       return;
     }
     
@@ -476,21 +475,22 @@ export default function analyze(match) {
     
     FullArray(_left, readables, _right) {
       const contents = readables.asIteration().children.map(r => r.rep());
-      if contents.length === 0 {
+      if (contents.length === 0) {
         return core.emptyArray();
       } else {
         return core.logosArray(contents);
       }
-    }
+    },
+    
     CopiedArray(_left, readable, _colon, length, _right) {
       let len = length.rep();
-      if len?.kind === "Variable" {
+      if (len?.kind === "Variable") {
         mustBeInteger(len);
         len = len.contents;
       }
       const contents = Array(len).fill(readable.rep());
       return core.logosArray(contents);
-    }
+    },
     
 
     // Data
@@ -665,8 +665,8 @@ export default function analyze(match) {
       const statementsRep = statements.rep();
       return core.filledOperation(operation, statementsRep);
     },
-    FilledRelation(id, _leftBracket, values, _rightBracket) {
-      const relation = id.rep();
+    FilledRelationOrProp(relation, _leftBracket, values, _rightBracket) {
+      const relationRep = relation.rep();
       const valuesRep = values.rep();
       return core.filledRelation(relation, valuesRep);
     },
@@ -851,7 +851,7 @@ export default function analyze(match) {
       mustHaveEqualLength(typeParams.length === typesList.length, { at: types });
       
       let typesRep = new Array();
-      for (index, type) in typesList.entries() {
+      for (const [index, type] in typesList.entries()) {
         let typeRep = type.rep();
         
         // Check at end?
@@ -1148,15 +1148,15 @@ export default function analyze(match) {
     
     ClassBody(_left, classMods, _right) {
       const mods = new Array();
-      for module in classMods.children {
+      for (const module in classMods.children) {
         const mod = module.Rep();
-        const contextualName = context.module.name + "." mod.name; // context.mod can be class or classImpl
+        const contextualName = context.module.name + "." + mod.name; // context.mod can be class or classImpl
         mustNotAlreadyBeDeclared(contextualName, { at: classMods });
         context.add(contextualName, mod);
       }
       mustBeDistinct(mods, "Modules must be distinct", { at: classMods });
       return mods
-    }
+    },
 
     ClassDecl(_class, id, typeParameters, superClass, classBody) {
       const idStr = id.sourceString;
@@ -1297,16 +1297,16 @@ export default function analyze(match) {
     
     none(_) {
       return core.nullObject;
-    }
+    },
     true(_) {
       return true;
-    }
+    },
     false(_) {
       return false;
-    }
+    },
     number(_digits) {
       return Number(this.sourceString);
-    }
+    },
   });
 
   return builder(match).rep();

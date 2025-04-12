@@ -54,6 +54,9 @@ export function moduleType(paramsMut, paramTypes, returnType) {
 }
 
 export function module(name, typeParams, params, returnType, body) {
+  if (!Array.isArray(params)) {
+    throw new Error("Params must be array");
+  }
   return {
     kind: "Module",
     name,
@@ -65,8 +68,8 @@ export function module(name, typeParams, params, returnType, body) {
       (Array.isArray(params) ? params : []).map((p) => p.mutable),
       (Array.isArray(params) ? params : []).map((p) => p.type),
       */
-      params.map(p) => p.mutable,
-      params.map(p) => p.type,
+      params.map(p => p.mutable),
+      params.map(p => p.type),
       returnType
     ),
   };
@@ -220,17 +223,17 @@ export function decrementVar(variable) {
   return { kind: "Decrement", variable }
 }
 
-export function returnLine(degree, expression) {
-  return { kind: "Return", degree, expression }
+export function returnLine(expression) {
+  return { kind: "Return", expression }
 }
 
-export function yieldLine(degree, expression) {
-  return { kind: "Yield", degree, expression }
+export function yieldLine(expression) {
+  return { kind: "Yield", expression }
 }
 
-export const breakLine = { kind: "Break" }
+export function breakLine(number) { return { kind: "Break", number } }
 
-export const continueLine = { kind: "Continue"}
+export function continueLine(number) { return { kind: "Continue", number } }
 
 // Variable constructors
 export function construct(filledStruct, readables) {
@@ -284,13 +287,13 @@ export function logosArray(contents) {
   return { type: arrayType(contents[0].type, contents.length), contents }
 }
 export function emptyArray() {
-  return { type: arrayType(null, 0), [] }
+  return { type: arrayType(null, 0), contents: [] }
 }
 export function list(readables) {
   return { type: listType(readables[0].type), readables }
 }
 export function emptyList(type) {
-  return { type: listType(type), [] }
+  return { type: listType(type), contents: [] }
 }
 
 // Control Flow
@@ -316,8 +319,6 @@ export function matchConditionType(typeToMatch) {
   return { kind: "MatchConditionType", typeToMatch, type: boolType }
 }
 
-export function breakLine(
-
 
 // Standard operations
 export function andStatement(s1, s2) {
@@ -336,18 +337,21 @@ export function equalStatement(s1, s2) {
 const equalOp = operation("equal1234567890", ["A","B"], equalStatement("A","B"))
 
 
-
     const errorClass = classs(
       "Error",
       [],
-      [
-        field("crash", boolType), 
-        field("print", boolType)
-      ],
       [module(
         "print", 
+        [],
         [parameter("message", false, stringType)],
         voidType,
+        null
+      ),
+      module(
+        "crash",
+        [],
+        [],
+        boolType,
         null
       )]
     );
@@ -356,17 +360,15 @@ const equalOp = operation("equal1234567890", ["A","B"], equalStatement("A","B"))
     const collectionClass = classs(
       "Collection",
       [collectionBaseType],
-      [
-        field("crash", boolType), 
-        field("print", boolType)
-      ],
       [module(
         "get", 
+        [],
         [parameter("self", false, null)],
         collectionBaseType,
         null
       ), module(
         "next",
+        [],
         [parameter("self", true, null)],
         voidType,
         null
@@ -389,10 +391,10 @@ const equalOp = operation("equal1234567890", ["A","B"], equalStatement("A","B"))
     const comparableClass = classs(
       "Comparable",
       [],
-      [],
       [
         module(
         "cmp",
+        [],
         [parameter("self", false, null), parameter("other", false, null)],
         filledEnum(orderingEnum,[]),
         null
@@ -409,9 +411,9 @@ const equalOp = operation("equal1234567890", ["A","B"], equalStatement("A","B"))
     const equatableClass = classs(
       "Equatable",
       [],
-      [],
       [module(
         "eq",
+        [],
         [parameter("self", false, null), parameter("other", false, null)],
         boolType,
         null
