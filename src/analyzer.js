@@ -231,8 +231,46 @@ export default function analyze(match) {
     must(variable.mutable === true, at);
   }
 
-  // ValidType in Ohm
-  function mustBeObject(e, at) {
+  function isDataType(x) {
+    x?.kind === "Value" ||
+    x?.kind === "Relation" ||
+    x?.kind === "Infix" ||
+    x?.kind === "Operation" ||
+    x?.kind === "Property"
+  }
+  
+  function isAction(x) {
+    x?.type === "Action"
+  }
+  
+  function isStatement(x) {
+    x?.type === "Statement"
+  }
+  
+  function isDataDecl(x) {
+    x?.type === "DataDecl"
+  }
+  
+  function hasType(x) {
+    x?.type != null
+  }
+  
+  function typeMustBeObject(t, at) {
+    must(hasType &&
+      !(isAction(t)) &&
+      !(isDataDecl(t)) &&
+      t?.kind !== "MatchConditionType",
+      "Not an object"
+    );
+    /*
+    must(
+      t?.type === core.intType ||
+      t?.type === core.boolType ||
+      t?.type === core.stringType ||
+      t?.type === core.voidType ||
+      t?.kind === "MutRef" ||
+      t
+    
     const isPrimitiveType = /int|bool|void|any/.test(e);
     const isDataType = /Value|Infix|Statement|Assumption/.test(e);
     const isNumberedDataType = /RelationType|OperationType|PropertyType/.test(
@@ -247,6 +285,7 @@ export default function analyze(match) {
       "Type expected",
       at
     );
+    */
   }
   
   function isVariable(e) {

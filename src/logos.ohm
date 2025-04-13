@@ -86,7 +86,7 @@ Logos {
 	SelfParam = mut? "self"
 	ModParam = id2 ":" FullType
 	
-	FullType = mut? FullType // mut is just &
+	FullType = mut? BasicType // mut is just &
 	BasicType
 		= defaultType
 		| NumberedRelation
@@ -112,7 +112,7 @@ Logos {
 	propertyWord = "property" | "prop"
 	
 	NumberedRelation = "relation" Numbering?
-	ArrayType = "[" FullType ";" number? "]"
+	ArrayType = "[" FullType (";" number)? "]"
 	
 	ModBody = "{" ActionLine* "}"
 	ActionLine = Action ";"
@@ -152,11 +152,11 @@ Logos {
 		| bool
 		| InEqualities
 		| Variable		// will need to add statement.truth
-	And = EvalBool1 "&" EvalBool2
-	Or = EvalBool1 "|" EvalBool2
+		| ParenEvalBool
+	ParenEvalBool = "(" EvalBool ")"
+	And = EvalBool "&" EvalBool
+	Or = EvalBool "|" EvalBool
 	Not = "!" EvalBool
-	EvalBool1 = EvalBool
-	EvalBool2 = EvalBool
 		
 	InEqualities = Expr InEqual Expr
 	InEqual = "<" | ">" | "==" | "!="
@@ -169,7 +169,7 @@ Logos {
 	Collection = LogosArray | Variable
 	WhileFlow = while EvalBool do Action
 	MatchFlow = match Variable ":" ListOf<MatchLine, ",">
-	MatchLine = MatchStart "=>" Action
+	MatchLine = ListOf<MatchStart, "+"> "=>" Action
 	MatchStart
 		= FullType
 		| IfEvalBool
@@ -178,8 +178,9 @@ Logos {
 	LogosArray						// range will be built-in. Count(int), Range(int, int).
 		= FullArray
 		| CopiedArray
-	FullArray = "[" ListOf<Expr, ","> "]"
-	CopiedArray = "[" Expr ";" Int "]"
+	FullArray = "[" ListOf<Expr, ","> ArrayNumber? "]"
+	CopiedArray = "[" Expr ArrayNumber? "]"
+	ArrayNumber = ";" Int
 	Int
 		= number
 		| Variable

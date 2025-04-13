@@ -1,0 +1,37 @@
+// new1
+
+// class Any {}
+
+class Traceable {
+  mod source(self) -> Any;
+}
+
+enum Contradiction {
+  direct: None,
+  indirect: bool,
+  bool, // equivalent to 0: bool
+}
+
+struct ContradictionSource {
+  source: string,
+  data: mut [bool; 4],
+  notes: mut [string],
+  contradiction: Contradiction,
+}
+
+mod ContradictionSource.new() {
+  return Self {
+    source: "root",
+    data: mut [false; 4],
+    notes: mut [],
+    contradiction: Contradiction.direct(none),
+  };
+}
+
+mod main(source: ContradictionSource, realSource: Traceable) {
+  if source == none {
+  x = ContradictionSource.new();
+  }
+  x.data.3 = true;
+  print(str(x.data)); // [false, false, false, true]
+}

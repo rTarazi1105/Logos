@@ -62,7 +62,7 @@ export function classs(name, modules) {	// auto-impl "
 }
 
 export function classImpl(type, classs, modules) {
-  return { kind: "ClassImpl", name: type.name + ".impl." + classs.name, type, classs, modules }
+  return { kind: "ClassImpl", name: type.name + ".impl." + classs.name, subjectType: type, classs, modules }
 }
 	// Elements
 export function field(name, fullType) {	// or param
@@ -186,7 +186,7 @@ export function breakLine(number) {
 }
 
 export function continueLine(number) {
-  return { kind: "Continue", number, type: "ActioN" } 
+  return { kind: "Continue", number, type: "Action" } 
 }
 
 // Variable constructors
@@ -258,7 +258,7 @@ export function emptyList(type) {
 
 // Control Flow
 export function ifFlow(condition, action, alternate) {
-  return { kind: "IfFlow", condition, action, alternate, returnType: action.returnType }
+  return { kind: "IfFlow", condition, action, alternate, type: action.returnType }
 }
 
 export function whileFlow(condition, action) {
@@ -273,7 +273,7 @@ export function matchFlow(variable, matchLines) {
   return { kind: "MatchFlow", variable, matchLines, type: matchLines[0].type }
 }
 export function matchLine(condition, action) { // condition can be type or "if"
-  return { kind: "MatchLine", condition, action, type: action.returnType }
+  return { kind: "MatchLine", condition, action }
 }
 export function matchConditionType(typeToMatch) {
   return { kind: "MatchConditionType", typeToMatch, type: boolType }
