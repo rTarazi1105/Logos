@@ -2,42 +2,16 @@ export function program(sections) {
 	return { kind : "Program", sections }
 }
 
-// These are used to check things that are used before declaration
-// Namely, FilledStruct, FilledEnum, and FilledClass
-export function requireType(name, type) { // FilledClass, FilledStruct, and FilledEnum can all be in ValidType
-  return { kind: "RequireType", name, type }
-}
-export function requireMethod(object, methodName, paramTypes) { // Method could be for a class or struct
-  return { kind: "RequireMethod", object, methodName, paramTypes } // Or method could be not declared yet
-}
-// Futures that are not here because they are just added to context: Method, module, struct, enum, class
-// TODO Check futures whenever moving up to parent --> make futures local for methods and modules but not for types
-
-// New solution for future
-export function customType(name) {
-  // TODO Whenever this is encountered, add it to the highest parent
-  return { kind: "CustomType", typeParams: [null], methods: [], cases: null, fields: null }
-  // Type.case --> add to cases + We know it's an enum
-  // mod m(arg: Type) { arg.field } --> add to fields + We know it's a struct
-  // For methods, it could be anything  
-  
-  // typeParams has to be a list of types that fulfill the classes hypothetically required by this customType
-  // Using [null] marks this as an undefined custom type
-}
-/*
-If we allow mods to be declared out of order, we lose type-checking (at least until the program is over)
-Therefore NO, mods must be declared before use
-However, types do not have to be declared before use
-Therefore, you can call a method before it is declared, if the type has not been declared yet
-*/
-
-
 // Primitives
 export const boolType = { kind: "BoolType", isType: true }
 export const intType = { kind: "IntType", isType: true }
 export const stringType = { kind: "StringType", isType: true }
 export const voidType = { kind: "VoidType", isType: true }
-export const anyType = { kind: "AnyType", isType: true }
+//export const anyType = { kind: "AnyType", isType: true }
+
+export function variableDeclaration(variable) {
+  return { kind: "VariableDeclaration", variable };
+}
 
 export function assignment(variable, readable) {
   return { kind: "Assignment", variable, readable }
@@ -47,38 +21,29 @@ export function returnType(mutable, type) {
   return { kind: "ReturnType", mutable, type }
 }
 
-export function variableDeclaration(variable) {
-  return { kind: "VariableDeclaration", variable };
+export function variable(name, mutable, type, contents) {
+  return { kind: "Variable", name, mutable, type, contents }
 }
 
-export function variable(name, type, contents) { // always mutable
-  return { kind: "Variable", name, type, contents }
+export function struct(name, fields) {	// auto-impl superclasses
+  return { kind: "Struct", name, fields, methods: [] }
 }
 
-export function typeParameter(name) {
-  return { kind: "TypeParameter", name, classes: new Map() } // Map<string, Class> - explained in analyzer
-}
-
-export function struct(name, typeParams, fields) {	// auto-impl superclasses
-  return { kind: "Struct", name, typeParams, fields, methods: [] }
-}
-
-export function enumeration(name, typeParams, cases) { // cases have kind field
-  return { kind: "Enum", name, typeParams, cases }
+export function enumeration(name, cases) { // cases have kind field
+  return { kind: "Enum", name, cases }
 }
 
 export function moduleType(paramsMut, paramTypes, returnType) {
   return { kind: "ModuleType", paramsMut, paramTypes, returnType }
 }
 
-export function module(name, typeParams, params, returnType, body) {
+export function module(name, params, returnType, body) {
   if (!Array.isArray(params)) {
     throw new Error("Params must be array");
   }
   return {
     kind: "Module",
     name,
-    typeParams,
     params,
     body,
     type: moduleType(
@@ -93,41 +58,16 @@ export function module(name, typeParams, params, returnType, body) {
   };
 }
 
-export function filledType(type, typeArgs) {
-  const filledType = { kind: "FilledType", inner: type, typeArgs, name: null };
-  const name = getTypeName(filledType);
-  filledType.name = name;
-  return filledType;
-}
-// Used for organizing methods
-// TODO: Move to string
-export function getTypeName(userDefinedType) {
-  const string = "";
-  if (userDefinedType?.kind === "FilledType") {
-    string = filledClass.inner.name + "<";
-    for (const p in filledClass.typeArgs) {
-      string = string + getTypeName(p) + ","; // should be struct, enum or class
-    }
-    string = string + ">";
-  } else {
-    return userDefinedType.name
-  }
+export function classs(name, modules) {	// auto-impl "
+  return { kind: "Class", name, modules }
 }
 
-export function classs(name, typeParams, modules) {	// auto-impl "
-  return { kind: "Class", name, typeParams, modules }
-}
-
-export function classImpl(type, filledClass, modules) {
-  return { kind: "ClassImpl", name: type.name + ".impl." + getTypeName(filledClass), type, filledClass, modules }
+export function classImpl(type, classs, modules) {
+  return { kind: "ClassImpl", name: type.name + ".impl." + classs.name, type, classs, modules }
 }
 	// Elements
 export function field(name, type) {	// or param
   return { kind: "Field", name, type }
-}
-
-export function parameter(name, mutable, type) {
-  return { kind: "Parameter", name, mutable, type }
 }
 
 	// Declarations
@@ -151,29 +91,28 @@ export function classDeclaration(classs) {
 
 
 export function value(name) {
-  return { kind: "Value", name }
+  return { type: "Value", name }
 }
 
 export function relation(name, args, statement) {
-  return { kind: relationType(args.length), name, args, statement }
+  return { type: relationType(args.length), name, args, statement }
 }
 
 export function operation(name, args, statement) {
-  return { kind: operationType(args.length), name, args, statement }
+  return { type: operationType(args.length), name, args, statement }
 }
 
 export function infix(name, operation) {	// Default: and, or, ==
-  return { kind: "Infix", name, operation }
+  return { type: "Infix", name, operation }
 }
 
 export function property(name, relationArgs, statement) {	// relationArgs are numbered
-  return { kind: propertyType(args.length), name, relationArgs, statement }
+  return { type: propertyType(relationArgs.map(r => r.type.number)), name, relationArgs, statement }
 }
 
 export function statement(name, innerStatement) {
-  return { kind: "Statement", isStatement: true, name, inner: innerStatement }
+  return { type: "Statement", isStatement: true, name, inner: innerStatement }
 }
-
 
 export function relationType(number) {
   return { kind: "RelationType", number }
@@ -181,25 +120,25 @@ export function relationType(number) {
 export function operationType(number) {
   return { kind: "OperationType", number }
 }
-export function propertyType(number, argNumbers) {
-  return { kind: "PropertyType", number, argNumbers }
+export function propertyType(numbers) {
+  return { kind: "PropertyType", numbers }
 }
 
 	// Statements
 export function equalityStatement(value1, value2) {
-  return { kind: "EqualityStatement", isStatement: true, value1, value2 }
+  return { kind: "EqualityStatement", type: "Statement", value1, value2 }
 }
 export function negationStatement(inner) {
-  return { kind: "Negation", isStatement: true, inner }
+  return { kind: "Negation", type: "Statement", inner }
 }
 export function filledRelation(relation, values) {
-  return { kind: "FilledRelation", isStatement: true, relation, values }
+  return { kind: "FilledRelation", type: "Statement", relation, values }
 }
 export function filledOperation(operation, statements) {
-  return { kind: "FilledOperation", isStatement: true, operation, statements }
+  return { kind: "FilledOperation", type: "Statement", operation, statements }
 }
 export function filledProperty(property, relations) {
-  return { kind: "FilledProperty", isStatement: true, property, relations }
+  return { kind: "FilledProperty", type: "Statement", property, relations }
 }
 	// Declarations
 export function valueDeclaration(value) {
@@ -252,8 +191,8 @@ export function breakLine(number) { return { kind: "Break", number } }
 export function continueLine(number) { return { kind: "Continue", number } }
 
 // Variable constructors
-export function construct(filledStruct, readables) {
-  return { kind: "Struct", readables, type: filledStruct }
+export function construct(struct, readables) {
+  return { kind: "Struct", readables, type: struct }
 }
 
 export function methodCall(variable, method, args) {
@@ -286,8 +225,8 @@ export function varField(variable, field) {	// includes list indices
 export function varIndex(variable, index, type) { // get type from arrayType.baseType
   return { kind: "VarIndex", variable, index, type }
 }
-export function enumCase(filledEnum, field) {
-  return { kind: "EnumCase", filledEnum, field, type: field.type }
+export function enumCase(enumeration, field) {
+  return { kind: "EnumCase", enumeration, field, type: field.type }
 }
 
 	// Collections
@@ -300,16 +239,16 @@ export function listType(baseType) {	// array but growable
 }
 
 export function logosArray(contents) {
-  return { type: arrayType(contents[0].type, contents.length), contents }
+  return { kind: "Array", type: arrayType(contents[0].type, contents.length), contents }
 }
 export function emptyArray() {
-  return { type: arrayType(null, 0), contents: [] }
+  return { kind: "Array", type: arrayType(null, 0), contents: [] }
 }
 export function list(readables) {
-  return { type: listType(readables[0].type), readables }
+  return { kind: "List", type: listType(readables[0].type), readables }
 }
 export function emptyList(type) {
-  return { type: listType(type), contents: [] }
+  return { kind: "List", type: listType(type), contents: [] }
 }
 
 // Control Flow
@@ -342,13 +281,16 @@ const orInfix = infix("or", null);
 const equalInfix = infix("==", null);
 
 
+    const anyClass = classs(
+      "Any",
+      []
+    );
     const errorClass = classs(
       "Error",
-      [],
       [module(
         "print", 
         [],
-        [parameter("message", false, stringType)],
+        [variable("message", false, stringType)],
         voidType,
         null
       ),
@@ -361,20 +303,18 @@ const equalInfix = infix("==", null);
       )]
     );
     
-    const collectionBaseType = typeParameter("T");
     const collectionClass = classs(
       "Collection",
-      [collectionBaseType],
       [module(
         "get", 
         [],
-        [parameter("self", false, null)],
-        collectionBaseType,
+        [variable("self", false, null)],
+        anyClass,
         null
       ), module(
         "next",
         [],
-        [parameter("self", true, null)],
+        [variable("self", true, null)],
         voidType,
         null
       )]
@@ -388,20 +328,18 @@ const equalInfix = infix("==", null);
       }
     }
     
-    const orderingEnum = enumeration("Ordering", [], [
+    const orderingEnum = enumeration("Ordering", [
       field("LessThan", voidType), 
       field("EqualTo", voidType), 
       field("GreaterThan", voidType)
     ]);
     const comparableClass = classs(
       "Comparable",
-      [],
       [
         module(
         "cmp",
-        [],
-        [parameter("self", false, null), parameter("other", false, null)],
-        filledEnum(orderingEnum,[]),
+        [variable("self", false, null), variable("other", false, null)],
+        orderingEnum,
         null
       )]
     );
@@ -415,11 +353,9 @@ const equalInfix = infix("==", null);
     
     const equatableClass = classs(
       "Equatable",
-      [],
       [module(
         "eq",
-        [],
-        [parameter("self", false, null), parameter("other", false, null)],
+        [variable("self", false, null), variable("other", false, null)],
         boolType,
         null
       )]
@@ -434,15 +370,13 @@ const equalInfix = infix("==", null);
     
     
     
-    const listBaseType = typeParameter("T");
+    
     const listStruct = struct(
       "List",
-      [listBaseType],
-      [field("0", listType(listBaseType))]
+      [field("0", listType(anyClass))]
     );
     listStruct.methods.push(module(
       "new",
-      [],
       [],
       null,
       null
@@ -451,15 +385,13 @@ const equalInfix = infix("==", null);
 
 const strMod = module(
   "str", 
-  [], 
-  [parameter("text", false, anyType)], 
+  [variable("text", false, anyClass)], 
   stringType, 
   null
 );
 const printMod = module(
   "print", 
-  [], 
-  [parameter("text", false, stringType)], 
+  [variable("text", false, stringType)], 
   voidType,
   null
 );
@@ -477,18 +409,19 @@ export const standardLibrary = Object.freeze({
   bool: boolType,
   string: stringType,
   void: voidType,
-  any: anyType,
+  //any: anyType,
   //print: intrinsicFunction("print", anyToVoidType),
   "and": andInfix,
   "or": orInfix,
   "==": equalInfix,
+  "Any": anyClass,
   "Error": errorClass,
   "Ordering": orderingEnum,
   "Comparable": comparableClass,
   "Equatable": equatableClass,
   "Collection": collectionClass,
   "List": listStruct,
-  "str": strMod
+  "str": strMod,
   "print": printMod, 
 })
 

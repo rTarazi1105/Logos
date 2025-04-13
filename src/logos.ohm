@@ -62,34 +62,26 @@ Logos {
 	
 	Numbering = "<" number ">"
 	
-	StructDecl = "struct" id3 TypeParams? "{" ListOf<Param, ","> "}" 
-	EnumDecl = "enum" id3 TypeParams? "{" ListOf<Param, ","> "}"
+	StructDecl = "struct" id3 "{" ListOf<Param, ","> "}" 
+	EnumDecl = "enum" id3 "{" ListOf<Param, ","> "}"
 	
 	ModDecl = "mod" id2 ModHead ModBody
-	ModHead = TypeParams? "(" ListOf<ModParamWithSelf, ","> ")" ReturnType?
+	ModHead = "(" ListOf<ModParamWithSelf, ","> ")" ReturnType?
 	// OptModParams = ListOf<ModParam, ",">
 	
-	MethodDecl = "mod" MethodType "." id2 ModHead ModBody
-	MethodType = CustomType TypeArgsOrParams?
-	TypeArgsOrParams = ListOf<TypeArgOrParam, ",">
-	TypeArgOrParam = ValidType | ATypeParam
+	MethodDecl = "mod" CustomType "." id2 ModHead ModBody
 	
 	ModParamWithSelf = ModParam | SelfParam
 	
 	ReturnType = "->" mut? ValidType
 	
-	ClassDecl = "class" id3 TypeParams? SuperClass? ClassBody
-	SuperClass = ":" ListOf<FilledCustomType, "+">
+	ClassDecl = "class" id3 SuperClass? ClassBody
+	SuperClass = ":" ListOf<CustomType, "+">
 	ClassBody = "{" ClassMod* "}"
 	ClassMod = "mod" id2 ModHead ModBodyOrColon
 	ModBodyOrColon = ModBody | ";"
 	
-	ClassImpl = FilledCustomType "impl" FilledCustomType ClassBody
-	
-	TypeParams = "<" ListOf<IdAndSuperClass, ","> ">"		// no superclass = Any
-	
-	IdAndSuperClass = ATypeParam SuperClass?
-	TypeArgs = "<" ListOf<ValidType, ","> ">"	// FilledTypeParam
+	ClassImpl = CustomType "impl" CustomType ClassBody
 	
 	Param = (id2 ":")? ValidType				// if no id: let it be 0,1 etc
 	SelfParam = mut? "self"
@@ -99,8 +91,7 @@ Logos {
 		= defaultValidType
 		| NumberedRelation
 		| ArrayType
-		| FilledCustomType
-	FilledCustomType = CustomType TypeArgs?
+		| CustomType
 	
 	defaultValidType
 		= "value"
@@ -112,7 +103,9 @@ Logos {
 		| "string"
 		| selfType
 		| noneType
+		| anyClass
 		| errorClass
+		| collectionClass
 		| comparableClass
 		| equatableClass
 	operationWord = "operation" | "op"
@@ -135,13 +128,13 @@ Logos {
 		| MethodCall
 		| ModCall
 	MethodCall = VarOrType "." id2 Call
-	VarOrType = Variable | FilledCustomType
+	VarOrType = Variable | CustomType
 	ModCall = id2 Call
 	Call = "(" ListOf<Readable, ","> ")"
 	
-	Assignment = Variable "=" Readable
+	Assignment = Variable "=" mut? Readable
 	Readable = Construct | Literal | ControlFlow | LogosArray | Variable
-	Construct = FilledCustomType "{" ListOf<Readable, ","> "}"
+	Construct = CustomType "{" ListOf<Readable, ","> "}"
 	Increment = Variable "++"
 	Decrement = Variable "--"
 	
@@ -239,12 +232,11 @@ Logos {
 		| continue
 	//	| "len"
 	
-	ATypeParam = id3
 	DataVar = Variable | id1	// Can be a variable only if in mod
 	Operation = Variable
 	UserDefinedInfix = id2
 	
-	CustomType = collectionClass | id3			// struct, enum or class
+	CustomType = id3			// struct, enum or class
 	AssignedVariable = id2
 	Field = id2 | number
 	
@@ -264,6 +256,7 @@ Logos {
 	continue = "continue"
 	selfType = "Self"
 	noneType = "None"
+	anyClass = "Any"
 	errorClass = "Error"
 	comparableClass = "Comparable"
 	equatableClass = "Equatable"

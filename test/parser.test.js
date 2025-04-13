@@ -20,7 +20,7 @@ const syntaxChecks = [
   ["chained ors in data 2", "operation all : A, b, C : A or b or C;"],
   [
     "struct declaration",
-    "struct Coordinate<Numeral> {x: Numeral, y:int, type:CoordType}",
+    "struct Coordinate {x: Numeral, y:int, type:CoordType}",
   ],
   [
     "class declaration",
@@ -39,7 +39,7 @@ const syntaxChecks = [
   ["array type returned", "mod m() -> [[int;];] {}"],
   [
     "type parameter and optional",
-    "mod wrap<T>(item: T) -> Option<T> { return Option.new(item); } ",
+    "mod wrap(item: T) -> Option { return Option.new(item); } ",
   ],
   ["assignments", "mod m() { a -- ; c ++ ; abc=3; a=1; }"],
   [
@@ -62,7 +62,7 @@ const syntaxChecks = [
   ],
   [
     "returning up",
-    "mod m<A: SomeClass, B>(a: A, b: B) -> B { sum = 0; last = for i in [0, 1, 2] do { sum++; if i == 1 then return i;}; if sum != 3 then return b else { if last == 1 then return b.inverse(); }; }",
+    "mod m(a: A, b: B) -> B { sum = 0; last = for i in [0, 1, 2] do { sum++; if i == 1 then return i;}; if sum != 3 then return b else { if last == 1 then return b.inverse(); }; }",
   ],
   [
     "chained ors",

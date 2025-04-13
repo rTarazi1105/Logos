@@ -479,9 +479,10 @@ export default function analyze(match) {
       filledStructRep = filledStruct.rep();
       readablesRep = readables.asIteration().children.map(a => a.rep());
       
-      if (filledStructRep.inner.fields == null) {
+      if (filledStructRep.inner.kind === "CustomType") {
         // Future
       } else {
+        mustBeKindK(filledStructRep.inner, "Struct", { at: filledStruct });
         mustHaveEqualLength(readablesRep, filledStructRep.inner.fields, { at: filledStruct });
       }
       
@@ -500,7 +501,7 @@ export default function analyze(match) {
     
     CopiedArray(_left, readable, _colon, length, _right) {
       let len = length.rep();
-      if isVariable(len) {
+      if (isVariable(len)) {
         mustBeInteger(len);
         len = len.contents;
       }
@@ -663,7 +664,7 @@ export default function analyze(match) {
     
     DataVar(id) {
       const variable = id.rep();
-      if isVariable(variable, { at: id }) {
+      if (isVariable(variable, { at: id })) {
         return variable;
       }
       
@@ -756,7 +757,7 @@ export default function analyze(match) {
       const idStr = id.sourceString;
       let type = context.lookup(idStr);
       
-      if type == null {
+      if (type == null) {
         type = core.customType(idStr);
       }
       return type;
@@ -766,7 +767,7 @@ export default function analyze(match) {
       context = context.newChildContext({inLoop: false, inData: false, module: customTypeRep.typeParams});
       let typeArgsRep = typeArgs.rep();
       context = context.parent;
-      if typeArgsRep == null {
+      if (typeArgsRep == null) {
         typeArgsRep = [];
       }
       
@@ -831,7 +832,7 @@ export default function analyze(match) {
               must(false, "No such field", { at: id});
             }
             
-          } else if variable.type?.inner === "CustomType" {
+          } else if (variable.type?.inner === "CustomType") {
             // Future
             if (field == null) {
               field = core.field(fieldStr, null);	// TODO HOOKMAX WE LOST TYPE CHECKING
@@ -887,8 +888,6 @@ export default function analyze(match) {
         { at: types },
       );
       
-      let typesList = types.asIteration().children;
-      
       let typesRep = new Array();
       for (const [index, type] in typesList.entries()) {
         let typeRep = type.rep();
@@ -905,7 +904,7 @@ export default function analyze(match) {
     },
     SuperClass(_colon, classes) {
       const superclasses = [];
-      for classs in classes.asIteration().children {
+      for (classs in classes.asIteration().children) {
         const classRep = classs.rep();
         mustBeKindK(classRep, "FilledType", { at: classs});
         mustBeKindK(classRep.inner, "Class", { at: classs});
@@ -1108,14 +1107,14 @@ export default function analyze(match) {
     MethodType(customType, typeArgsOrParams) {
       const struct = customType.rep();
       mustBeKindK(struct, "Struct", { at: customType });
-      if typeArgsOrParams == null {
+      if (typeArgsOrParams == null) {
         // Must be struct with 0 type-args
         mustHaveLength(struct.typeParams, 0, { at: typeArgsOrParams });
         
         return core.filledType(struct, []);
       } else {
         const typesRep = typeArgsOrParams.rep();
-        if typesRep[0].kind === "TypeParameter" {
+        if (typesRep[0].kind === "TypeParameter") {
           mustHaveEqualLength(struct.typeParams, typesRep, { at: typeArgsOrParams });
           // every typeParam in typesRep should have no classes, but this should be caught by parser
           
@@ -1142,7 +1141,7 @@ export default function analyze(match) {
       context.add(contextualName, method); // Allow recursion
       
       
-      if struct.kind === "Struct" {
+      if (struct.kind === "Struct") {
         // TODO: how should unfilled struct be treated?
         for (const typeParam in struct.typeParams) {
           mustNotAlreadyBeDeclared(param.name, { at: head });
@@ -1306,18 +1305,18 @@ export default function analyze(match) {
       return action.rep();
     },
 
-    Assignment(id, _eq, expr) {
+    Assignment(id, _eq, mut, expr) {
       idStr = id.sourceString;
       exprRep = expr.rep();
       mustBeObject(exprRep, { at: id});
       const variable = context.lookup(idStr);
       if (variable == null) {
-        newVar = core.variable(idStr, exprRep.type, exprRep);
+        newVar = core.variable(idStr, mut, exprRep.type, exprRep);
         context.add(idStr,newVar);
         return core.variableDeclaration(newVar);
       } else {
         if (variable.type !== exprRep.type) {
-          newVar = core.variable(idStr, exprRep.type, exprRep);
+          newVar = core.variable(idStr, mut, exprRep.type, exprRep);
           context.add(idStr, newVar);
           return core.variableDeclaration(newVar);
         }
@@ -1328,25 +1327,25 @@ export default function analyze(match) {
     
     Call(_left, args, _right) {
       return args.asIteration().children.map(a => a.rep());
-    }
+    },
 
     MethodCall(varOrType, _dot, methodId, args) {
       const subjectRep = varOrType.rep();
-      if isVariable(subjectRep) {
+      if (isVariable(subjectRep)) {
         return
       
-      } else if subjectRep?.kind === "FilledType" {
+      } else if (subjectRep?.kind === "FilledType") {
         const methodName = subjectRep.inner.name + methodId.sourceString; // hook
         
         
       } else {
         must(false, "Cannot call this object", { at: varOrType });
       }
-      const method = 
+      //const method = 
       
       
       const idStr = id.sourceString;
-      const variable = context.lookup(
+      //const variable = context.lookup(
       const method = context.lookup(id.sourceString);
       //mustBeCallable(method, { at: id });
       // TODO Either the method exists, or a Future
@@ -1373,9 +1372,9 @@ export default function analyze(match) {
       const idStr = id.sourceString;
       const module = context.lookup(idStr);
       must(module?.kind != null && module?.kind === "Module", "Expected a module", { at: id });
-      for arg in args.children {
+      for (arg in args.children) {
         const argRep = arg.rep();
-        mustHaveKindK(argRep, 
+        //mustHaveKindK(argRep, 
       }
       const argsRep = args.rep();
       
