@@ -67,33 +67,33 @@ Logos {
 	
 	ModDecl = "mod" id2 ModHead ModBody
 	ModHead = "(" ListOf<ModParamWithSelf, ","> ")" ReturnType?
-	// OptModParams = ListOf<ModParam, ",">
 	
 	MethodDecl = "mod" CustomType "." id2 ModHead ModBody
 	
 	ModParamWithSelf = ModParam | SelfParam
 	
-	ReturnType = "->" mut? ValidType
+	ReturnType = "->" FullType
 	
-	ClassDecl = "class" id3 SuperClass? ClassBody
-	SuperClass = ":" ListOf<CustomType, "+">
+	ClassDecl = "class" id3 ":" SuperClass? ClassBody
+	SuperClass = ListOf<CustomType, "+">
 	ClassBody = "{" ClassMod* "}"
 	ClassMod = "mod" id2 ModHead ModBodyOrColon
 	ModBodyOrColon = ModBody | ";"
 	
 	ClassImpl = CustomType "impl" CustomType ClassBody
 	
-	Param = (id2 ":")? ValidType				// if no id: let it be 0,1 etc
+	Param = (id2 ":")? FullType				// if no id: let it be 0,1 etc
 	SelfParam = mut? "self"
-	ModParam = id2 ":" mut? ValidType
+	ModParam = id2 ":" FullType
 	
-	ValidType
-		= defaultValidType
+	FullType = mut? FullType // mut is just &
+	BasicType
+		= defaultType
 		| NumberedRelation
 		| ArrayType
-		| CustomType
+		| SuperClass
 	
-	defaultValidType
+	defaultType
 		= "value"
 		| "statement"
 		| operationWord
@@ -112,7 +112,7 @@ Logos {
 	propertyWord = "property" | "prop"
 	
 	NumberedRelation = "relation" Numbering?
-	ArrayType = "[" ValidType ";" number? "]"
+	ArrayType = "[" FullType ";" number? "]"
 	
 	ModBody = "{" ActionLine* "}"
 	ActionLine = Action ";"
@@ -130,18 +130,19 @@ Logos {
 	MethodCall = VarOrType "." id2 Call
 	VarOrType = Variable | CustomType
 	ModCall = id2 Call
-	Call = "(" ListOf<Readable, ","> ")"
+	Call = "(" ListOf<Expr, ","> ")"
 	
-	Assignment = Variable "=" mut? Readable
+	Assignment = Variable "=" Expr
+	Expr = mut? Readable
 	Readable = Construct | Literal | ControlFlow | LogosArray | Variable
-	Construct = CustomType "{" ListOf<Readable, ","> "}"
+	Construct = CustomType "{" ListOf<Expr, ","> "}"
 	Increment = Variable "++"
 	Decrement = Variable "--"
 	
 	BreakLine = break+
 	ContinueLine = continue+
 	
-	Return = returnOrYield Readable?
+	Return = returnOrYield Expr?
 	returnOrYield = "return" | "yield"
 	
 	EvalBool
@@ -157,7 +158,7 @@ Logos {
 	EvalBool1 = EvalBool
 	EvalBool2 = EvalBool
 		
-	InEqualities = Readable InEqual Readable
+	InEqualities = Expr InEqual Expr
 	InEqual = "<" | ">" | "==" | "!="
 	
 	ControlFlow = IfFlow | MatchFlow | ForFlow | WhileFlow
@@ -170,15 +171,15 @@ Logos {
 	MatchFlow = match Variable ":" ListOf<MatchLine, ",">
 	MatchLine = MatchStart "=>" Action
 	MatchStart
-		= ValidType
+		= FullType
 		| IfEvalBool
 	IfEvalBool = if EvalBool
 	
 	LogosArray						// range will be built-in. Count(int), Range(int, int).
 		= FullArray
 		| CopiedArray
-	FullArray = "[" ListOf<Readable, ","> "]"
-	CopiedArray = "[" Readable ";" Int "]"
+	FullArray = "[" ListOf<Expr, ","> "]"
+	CopiedArray = "[" Expr ";" Int "]"
 	Int
 		= number
 		| Variable
@@ -209,7 +210,7 @@ Logos {
 	key
 		= bool
 		| mut
-		| defaultValidType
+		| defaultType
 		| defaultInfix
 		| returnOrYield
 		| none

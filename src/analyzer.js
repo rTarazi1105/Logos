@@ -1,49 +1,46 @@
-// Note on comments: "future" refers to a type that has been called but not defined (declared) yet
-// Note 2: Types and methods can be declared out of order, but class impl must be declared before use?
-// TODO: Remove field mapping
-
-// TODO Add inbuilt list etc
-
 import * as core from "../src/core.js";
 class Context {
   constructor({
     parent = null,
     locals = new Map(),
-    classes = new Map(),
     inLoop = false,
-    inData = false,
-    module = null,
-    musts = new Array(),
+    module = null
   }) {
     // Data can have locals
     // Data can be inside module but not vice versa
-    Object.assign(this, { parent, locals, classes, inLoop, module, musts });
+    Object.assign(this, { parent, locals, inLoop, module });
   }
   // Default will be Key: String, value: T
   // For truths, key: statement, value: bool
+  // For classes: type, map<className, class>
   add(name, entity) {
     this.locals.set(name, entity);
   }
   lookup(key) {
     return this.locals.get(key) || this.parent?.lookup(key);
   }
-
-// TODO: Add this everywhere
-  addStatement(statement, truth) {
-    /*
-    if (/bool/.test(statement)) {
-      return; // Don't add "true"
+  
+  getRoot() {
+    if this.parent != null {
+      return this.parent.getParent();
     }
-    */ // Can add "true" as "false", it should show up as a contradiction
-    
-    if (statement.isStatement !== true) {
+  }
+
+  addStatement(statement, truth) {
+    const truth = true;
+    if (!isStatement(statement)) {
+    // Note: can add booleans, even "true" can be added as false
+    // should show up as a contradiction later
       throw new Error(`Not a statement: ${statement}`);
     }
-
+    
+    /*
     // Unwrap
     while (statement.kind === "Statement") {
       statement = statement.inner;
     }
+    */
+    
     // Unwrap negation
     while (statement.kind === "Negation") {
       statement = statement.inner;
@@ -52,7 +49,7 @@ class Context {
 
     const existing = this.locals.get(statement);
     if (existing != null) {
-      if (existing != truth) {
+      if (existing !== truth) {
         throw new Error(`Direct contradiction in data: ${statement.name}`);
       } else {
         console.log(`Statement ${statement.name} redundant`);
@@ -60,75 +57,53 @@ class Context {
       }
     }
 
-    this.locals.set(statement, truth);
+    this.add(statement, truth);
   }
-
-  // Collection, Equatable, Comparable, Error
-  // classes: Map<type, Map<string,class>>
   
-  // Why are classes indexed by string? Bc:
-  // We don't have Struct<T> impl Class<T> thankfully
-  // If Struct impl Class<A>, Struct cannot impl Class<B>
-  
-  classify(filledClass, type) {
-    if (!this.classes.containsKey(type)) {
-      this.classes.set(type, new Map());
+  classify(classs, type) {
+    if (!this.locals.containsKey(type)) {
+      this.locals.set(type, new Map());
     }
     
-    const typeEntry = this.classes.get(type);
-    typeEntry.set(type.name, type);
+    this.locals.get(type).set(classs.name, classs);
   }
   
-  lookupClass(className, type) {
-    let superClasses = this.classes.get(type);
-    if (type.kind === "TypeParameter") {
-      superClasses = type.classes;
-    }
+  lookupClass(type, className) {
+    const superClasses = this.classes.get(type);
     
     if (superClasses.containsKey(className)) {
       return true;
     }
     
-    for (let filledClass of superClasses.values()) {
-      if (lookupClass(className, filledClass)) {
+    for (const classs of superClasses.values()) {
+      if (lookupClass(classs, className)) {
         return true;
       }
     }
     
-    // Don't look in parent - it should be the same
-    // this.parent.lookupClass(className, type)
-    
-    return false;
+    return this.parent?.lookupClass(type, className);
   }
   
-  getClass(className, type) {
-    let superClasses = this.classes.get(type);
-    if (type.kind === "TypeParameter") {
-      superClasses = type.classes;
-    }
+  getClass(type, className) {
+    const superClasses = this.classes.get(type);
     
-    for (let [name, filledClass] of superClasses) {
+    for (const [name, classs] of superClasses.entries()) {
       if (name === className) {
-        return filledClass;
+        return classs;
       }
-      const getSuperClass = getClass(className, filledClass);
+      const getSuperClass = getClass(classs, className);
       if (getSuperClass != null) {
         return getSuperClass;
       }
     }
+    
+    return this.parent?.getClass(type, className);
   }
 
   static root() {
-    let equatableClass = core.standardLibrary["Equatable"];
-    let comparableClass = core.standardLibrary["Comparable"];
 
     return new Context({
-      locals: new Map(Object.entries(core.standardLibrary)),
-      classes: new Map([
-        [core.boolType, new Map([["Equatable",equatableClass]])],
-        [(core.intType, new Map([["Comparable",comparableClass]]))],
-        [(comparableClass, new Map([["Equatable",equatableClass]]))],
-      ]),
+      locals: new Map(Object.entries(core.standardLibrary))
     });
   }
   newChildContext(props) {
@@ -150,15 +125,19 @@ export default function analyze(match) {
     must(!context.lookup(name), `Identifier ${name} already declared`, at);
   }
 
-  // Only at the end
-  function mustHaveBeenFound(entity, name, at) {
-    must(entity, `Identifier ${name} not declared`, at);
+  function mustAlreadyBeDeclared(name, at) {
+    must(context.lookup(name) === true, `Identifier ${name} not declared`, at);
   }
   
-  function mustBeTypeT(e, type, msg, at) {
-    must(e.type === type, msg, at);
+  function mustBeTypeT(e, type, at) {
+    must(e.type === type, `Expected type ${type}`, at);
   }
 
+  function mustBeKindK(e, k, at) {
+    must(e?.kind === k, `Expected kind ${k}`, at);
+  }
+
+/*
   function mustBeInteger(e, at) {
     mustBeTypeT(e, core.intType, "Expected an integer", at);
   }
@@ -170,22 +149,23 @@ export default function analyze(match) {
   function mustBeVoid(e, at) {
     mustBeTypeT(e, core.voidType, "Expected void", at);
   }
+*/
+
+  function isStatement(e) {
+    e?.type === "Statement" || /bool/.test(e)
+  }
 
   function mustBeStatement(e, at) {
     must(
-      e?.isStatement === true || /bool/.test(e),
+      isStatement(e) === true,
       "Expected statement",
       at
     );
   }
 
-  function mustBeKindK(e, t, at) {
-    must(e?.kind === t, `Expected type ${t}`, at);
-  }
-
   function mustHaveClass(e, className, at) {
     must(
-      context.lookupClass(className, e),
+      context.lookupClass(className, e) === true,
       `Expected type to have class <${className}>`,
       at
     );
@@ -194,11 +174,12 @@ export default function analyze(match) {
   function mustNotHaveClass(e, className, at) {
     must(
       !context.lookupClass(className, e),
-      `Class <${className}> already declared or not expected`,
+      `Cannot reuse class <${className}>`,
       at
     );
   }
 
+/*
 // Unused but should be FilledStruct
   function mustBeAStruct(e, at) {
     must(e.type?.kind === "Struct", "Expected a struct", at);
@@ -211,6 +192,7 @@ export default function analyze(match) {
       at
     );
   }
+*/
 
   function mustBothHaveTheSameType(e1, e2, at) {
     // must(e2.type === core.anyType || equivalent(e1.type, e2.type), "Operands do not have the same type", at)
