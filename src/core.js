@@ -2,22 +2,58 @@ export function program(sections) {
   return { kind : "Program", sections }
 }
 
+// Strings
+export function implName(typeName, className) {
+ return typeName + ".impl." + className;
+}
+
+export function typeName(type) {
+    if (typeof type === "string") return type;
+    if (
+      type.kind === "Struct" 
+      || type.kind === "Enum"
+      || type.kind === "ClassObjectType"
+      || type.kind === "ArrayType"
+      || type.kind === "ListType"
+    ) return type.name;
+    
+    throw new Error("TBD");
+}
+
 // Primitives
 export const boolType = { kind: "BoolType", isType: true }
 export const intType = { kind: "IntType", isType: true }
 export const stringType = { kind: "StringType", isType: true }
 export const voidType = { kind: "VoidType", isType: true }
-//export const anyType = { kind: "AnyType", isType: true }
 
-export function fullType(mutable, basicType) {
-  return { kind: "FullType", mutable, basicType }
+export const statementType = struct(
+  "statement",
+  [field("truth", boolType)]
+);
+export const valueType = struct(
+  "value",
+  []
+);
+valueType.methods.push(module(
+  "rel",
+  [],
+  listType(relationType(null))
+);
+
+
+export function mutRefType(basicType) {
+  return { kind: "MutRefType", basicType, isType: true }
 }
-export function mutRef(content) {
-  return { kind: "MutRef", content, type: fullType(mutable, content.type) }
+export function mutRef(variable) {
+  return { kind: "MutRef", variable, type: mutRefType(variable.type) }
 }
 
-export function variable(name, fullType, contents) {
-  return { kind: "Variable", name, fullType, contents }
+export function readVar(variable) {
+  return { kind: "ReadVar", variable }
+}
+
+export function variable(name, type, content) {
+  return { kind: "Variable", name, type, content }
 }
 
 export function variableDeclaration(variable) {
@@ -29,44 +65,68 @@ export function assignment(variable, readable) {
 }
 
 export function struct(name, fields) {	// auto-impl superclasses
-  return { kind: "Struct", name, fields, methods: [] }
+  return { kind: "Struct", name, fields, methods: [], isType: true }
 }
 
 export function enumeration(name, cases) { // cases have kind field
-  return { kind: "Enum", name, cases }
+  return { kind: "Enum", name, cases, isType: true }
 }
 
-export function moduleType(paramTypes, returnType) {
-  return { kind: "ModuleType", paramTypes, returnType }
+/*
+export function moduleType(mutSelf, paramTypes, returnType) {
+  return { kind: "ModuleType", mutSelf, paramTypes, returnType, isType: false } // false bc cannot be used
 }
+*/
 
-export function module(name, params, returnType, body) {
+export function module(name, mutSelf, params, returnType, body) {
   if (!Array.isArray(params)) {
     throw new Error("Params must be array");
   }
   return {
     kind: "Module",
     name,
+    mutSelf, // false if self is immutable. If no self, null
     params,
     body,
+    returnType
+    /*
     type: moduleType(
+      mutSelf,
       //(Array.isArray(params) ? params : []).map((p) => p.type),
       params.map(p => p.type),
       returnType
     ),
+    */
   };
+}
+
+export function modBody(actions, returnType) {
+  return { kind: "ModBody", actions, type: returnType }
+}
+
+export function classObjectType(classes) {
+  const name = classes[0].name;
+  for (const classs in classes.slice(1)) {
+    name = name + "+" + classs.name;
+  }
+  return { kind: "ClassObjectType", name, classes, isType: true }
 }
 
 export function classs(name, modules) {	// auto-impl "
   return { kind: "Class", name, modules }
 }
 
+
 export function classImpl(type, classs, modules) {
-  return { kind: "ClassImpl", name: type.name + ".impl." + classs.name, subjectType: type, classs, modules }
+  return { kind: "ClassImpl", name: implName(typeName(type), classs.name), subjectType: type, classs, modules }
 }
 	// Elements
-export function field(name, fullType) {	// or param
-  return { kind: "Field", name, type: fullType }
+export function field(name, type) {	// or param
+  return { kind: "Field", name, type }
+}
+
+export function parameter(name, type) {
+  return { kind: "Parameter", name, type }
 }
 
 	// Declarations
@@ -111,36 +171,44 @@ export function property(name, relationArgs, statement) {	// relationArgs are nu
 
 /*
 export function statement(name, innerStatement) {
-  return { kind: "StatementWrapper", type: "Statement", name, inner: innerStatement }
+  return { kind: "StatementWrapper", type: statementType, name, inner: innerStatement }
 }
 */
 
 export function relationType(number) {
-  return { kind: "RelationType", number }
+  return { kind: "RelationType", number, isType: true }
 }
 export function operationType(number) {
-  return { kind: "OperationType", number }
+  return { kind: "OperationType", number, isType: true }
 }
 export function propertyType(numbers) {
-  return { kind: "PropertyType", numbers }
+  return { kind: "PropertyType", numbers, isType: true }
 }
 
 	// Statements
+export function customStatement(string) {
+  return { kind: "CustomStatement", type: statementType, string }
+}
 export function equalityStatement(value1, value2) {
-  return { kind: "EqualityStatement", type: "Statement", value1, value2 }
+  return { kind: "EqualityStatement", type: statementType, value1, value2 }
 }
 export function negationStatement(inner) {
-  return { kind: "Negation", type: "Statement", inner }
+  return { kind: "Negation", type: statementType, inner }
 }
 export function filledRelation(relation, values) {
-  return { kind: "FilledRelation", type: "Statement", relation, values }
+  return { kind: "FilledRelation", type: statementType, relation, values }
 }
 export function filledOperation(operation, statements) {
-  return { kind: "FilledOperation", type: "Statement", operation, statements }
+  return { kind: "FilledOperation", type: statementType, operation, statements }
 }
 export function filledProperty(property, relations) {
-  return { kind: "FilledProperty", type: "Statement", property, relations }
+  return { kind: "FilledProperty", type: statementType, property, relations }
 }
+
+export function statementTruth(statement) {
+  return { kind: "StatementTruth", statement, type: boolType }
+}
+
 	// Declarations
 export function valueDeclaration(value) {
   return { kind: "ValueDeclaration", value, type: "DataDecl" }
@@ -166,19 +234,20 @@ export function statementDeclaration(statement) {
 
 // Actions
 
-export function incrementVar(variable) {
-  return { kind: "Increment", variable, type: "Action" }
+// Increment and decrement aren't counted as actions as they will be subsumed into assignment
+export function increment(variable) {
+  return { kind: "Increment", variable, type: variable.type }
 }
-export function decrementVar(variable) {
-  return { kind: "Decrement", variable, type: "Action" }
-}
-
-export function returnLine(expression) {
-  return { kind: "Return", expression, type: "Action" }
+export function decrement(variable) {
+  return { kind: "Decrement", variable, type: variable.type }
 }
 
-export function yieldLine(expression) {
-  return { kind: "Yield", expression, type: "Action" }
+export function returnLine(expression, modBody) {
+  return { kind: "Return", expression, modBody, type: "Action" }
+}
+
+export function yieldLine(expression, modBody) {
+  return { kind: "Yield", expression, modBody, type: "Action" }
 }
 
 export function breakLine(number) {
@@ -191,11 +260,15 @@ export function continueLine(number) {
 
 // Variable constructors
 export function construct(struct, readables) {
-  return { kind: "Struct", readables, type: struct }
+  return { kind: "Construct", readables, type: struct }
 }
 
 export function methodCall(variable, method, args) {
   return { kind: "MethodCall", variable, method, args, type: method.type.returnType}
+}
+
+export function associatedMethodCall(struct, method, args) {
+  return { kind: "AssociatedMethodCall", struct, method, args, type: method.type.returnType}
 }
 
 export function modCall(mod, args) {
@@ -227,7 +300,7 @@ export const unequalTo = { name: "!=", type: "Comparison" };
 export function varField(variable, field) {	// includes list indices
   return { kind: "VarField", variable, field, type: field.type }
 }
-export function varIndex(variable, index, type) { // get type from arrayType.baseType
+export function varIndex(variable, index, type) { // get type from arrayType.basicType
   return { kind: "VarIndex", variable, index, type }
 }
 export function enumCase(enumeration, field) {
@@ -235,12 +308,14 @@ export function enumCase(enumeration, field) {
 }
 
 	// Collections
-export function arrayType(baseType, len) {
-  return { kind: "ArrayType", baseType, len }
+export function arrayType(basicType, len) {
+  const typeName = typeName(basicType);
+  return { kind: "ArrayType", name: `[${typeName}, ${len}]`, basicType, len, isType: true }
 }
-// TODO: Add List(array)
-export function listType(baseType) {	// array but growable
-  return { kind: "ListType", baseType }
+
+export function listType(basicType) {	// array but growable
+  const typeName = typeName(basicType);
+  return { kind: "ListType", name: `[${typeName}]`, basicType, isType: true }
 }
 
 export function logosArray(contents) {
@@ -280,26 +355,27 @@ export function matchConditionType(typeToMatch) {
 }
 
 
+// Used to define several things
+// needed in modules rather than "null" because for a class, module may actually be null
+export const intrinsic = { kind: "Intrinsic", todo: true };
+
 // Standard operations
-const andInfix = infix("and",null);
-const orInfix = infix("or", null);
-const equalInfix = infix("==", null);
+const andInfix = infix("and",intrinsic);
+const orInfix = infix("or", intrinsic);
+const equalInfix = infix("==", intrinsic);
 
 
-    const anyClass = classs(
-      "Any",
-      []
-    );
+const anyClass = classs(
+  "Any",
+  []
+);
+const anyType = classObjectType([anyClass]);
+
     const errorClass = classs(
       "Error",
       [module(
-        "print", 
-        [variable("message", false, stringType)],
-        voidType,
-        null
-      ),
-      module(
         "crash",
+        false,
         [],
         boolType,
         null
@@ -310,24 +386,18 @@ const equalInfix = infix("==", null);
       "Collection",
       [module(
         "get", 
-        [variable("self", false, null)],
-        anyClass,
+        false,
+        [parameter("i", false, intType)],
+        anyType,
         null
       ), module(
-        "next",
-        [variable("self", true, null)],
+        "get_mut",
+        true,
+        [parameter("i", false, intType)],
         voidType,
         null
       )]
     );
-    if (collectionClass.modules?.length >= 2) {
-      if (collectionClass.modules[0].params?.length > 0) {
-        collectionClass.modules[0].params[0].type = collectionClass;
-      }
-      if (collectionClass.modules[1].params?.length > 0) {
-        collectionClass.modules[1].params[0].type = collectionClass;
-      }
-    }
     
     const orderingEnum = enumeration("Ordering", [
       field("LessThan", voidType), 
@@ -339,7 +409,8 @@ const equalInfix = infix("==", null);
       [
         module(
         "cmp",
-        [variable("self", false, null), variable("other", false, null)],
+        false,
+        [parameter("other", false, null)],
         orderingEnum,
         null
       )]
@@ -348,7 +419,6 @@ const equalInfix = infix("==", null);
       const cmpModule = comparableClass.modules[0];
       if (cmpModule.params?.length >= 2) {
         cmpModule.params[0].type = comparableClass;
-        cmpModule.params[1].type = comparableClass;
       }
     }
     
@@ -356,7 +426,8 @@ const equalInfix = infix("==", null);
       "Equatable",
       [module(
         "eq",
-        [variable("self", false, null), variable("other", false, null)],
+        false,
+        [parameter("other", false, null)],
         boolType,
         null
       )]
@@ -365,36 +436,67 @@ const equalInfix = infix("==", null);
       const eqModule = equatableClass.modules[0];
       if (eqModule.params?.length >= 2) {
         eqModule.params[0].type = equatableClass;
-        eqModule.params[1].type = equatableClass;
       }
     }
     
     
     
-    
+    /*
     const listStruct = struct(
       "List",
-      [field("0", listType(anyClass))]
+      [field("0", listType(anyType))]
     );
     listStruct.methods.push(module(
       "new",
       null,
-      null
+      listStruct
     ));
-    listStruct.methods[0].type.returnType = listStruct;
+    */
 
 const strMod = module(
   "str", 
-  [variable("text", false, anyClass)], 
+  null,
+  [parameter("text", false, anyType)], 
   stringType, 
-  null
+  intrinsic
 );
 const printMod = module(
   "print", 
-  [variable("text", false, stringType)], 
+  null,
+  [parameter("text", false, stringType)], 
   voidType,
-  null
+  intrinsic
 );
+
+const readModParam = parameter("obj", false, anyType);
+const readModBody = modBody([
+    returnLine(readVar(readModParam), null)
+], anyType);
+readModBody.actions[0].modBody = readModBody;
+const readMod = module(
+  "read",
+  null,
+  [readModParam],
+  anyType,
+  readModBody
+);
+
+const dropMod = module(
+  "drop",
+  null,
+  [parameter("obj", false, anyType)],
+  voidType,
+  intrinsic
+);
+
+const typeMod = module(
+  "type",
+  null,
+  [parameter("obj", false, anyType)],
+  voidType,
+  intrinsic
+);
+  
 
 // Literals
 export function nullObject() { 
@@ -409,6 +511,8 @@ export const standardLibrary = Object.freeze({
   bool: boolType,
   string: stringType,
   void: voidType,
+  "value": valueType,
+  "statement": statementType,
   //any: anyType,
   //print: intrinsicFunction("print", anyToVoidType),
   "and": andInfix,
@@ -420,9 +524,13 @@ export const standardLibrary = Object.freeze({
   "Comparable": comparableClass,
   "Equatable": equatableClass,
   "Collection": collectionClass,
-  "List": listStruct,
+  //"List": listStruct,
   "str": strMod,
   "print": printMod, 
+  "read": readMod, // gets the value from a mutref, basically deref
+  "drop": dropMod,
+  "type": typeMod,
+  
 })
 
 String.prototype.type = stringType

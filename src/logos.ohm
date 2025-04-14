@@ -15,6 +15,7 @@ Logos {
 		
 	Statement
 		= bool
+		| string
 		| Equality
 		| FilledInfix
 		| FilledOperation
@@ -35,7 +36,7 @@ Logos {
 	
 	Infix
 		= defaultInfix
-		| UserDefinedInfix
+		| id1
 	defaultInfix
 		= "and"							// and
 		| "or"							// or
@@ -53,8 +54,8 @@ Logos {
 		
 	ValueDecl = "value" id1 (":" DataVar)?
 	RelationDecl = id1 ":" ListOf<id1, ","> ":" Statement
-	OperationDecl = operationWord id2 ":" ListOf<id1, ","> ":" Statement
-	InfixDecl = "infix" id2 Operation
+	OperationDecl = operationWord id1 ":" ListOf<id1, ","> ":" Statement
+	InfixDecl = "infix" id1 DataVar
 	PropertyDecl = propertyWord id1 ":" ListOf<ArgRelation, ","> ":" Statement
 	ArgRelation = id1 Numbering
 	StatementDecl = id1 ":" Statement
@@ -62,56 +63,58 @@ Logos {
 	
 	Numbering = "<" number ">"
 	
-	StructDecl = "struct" id3 "{" ListOf<Param, ","> "}" 
-	EnumDecl = "enum" id3 "{" ListOf<Param, ","> "}"
+	StructDecl = "struct" id2 "{" ListOf<Param, ","> "}" 
+	EnumDecl = "enum" id2 "{" ListOf<Param, ","> "}"
+	Param = (id1 ":")? FullType				// if no id: let it be 0,1 etc
 	
-	ModDecl = "mod" id2 ModHead ModBody
+	ModDecl = "mod" id1 ModHead ModBody
 	ModHead = "(" ListOf<ModParamWithSelf, ","> ")" ReturnType?
 	
-	MethodDecl = "mod" CustomType "." id2 ModHead ModBody
+	MethodDecl = "mod" CustomType "." id1 ModHead ModBody
 	
 	ModParamWithSelf = ModParam | SelfParam
+	SelfParam = mut? "self"
+	ModParam = id1 ":" FullType
 	
-	ReturnType = "->" FullType
-	
-	ClassDecl = "class" id3 ":" SuperClass? ClassBody
+	ClassDecl = "class" id2 ":" SuperClass? ClassBody
 	SuperClass = ListOf<CustomType, "+">
 	ClassBody = "{" ClassMod* "}"
-	ClassMod = "mod" id2 ModHead ModBodyOrColon
+	ClassMod = "mod" id1 ModHead ModBodyOrColon
 	ModBodyOrColon = ModBody | ";"
 	
 	ClassImpl = CustomType "impl" CustomType ClassBody
 	
-	Param = (id2 ":")? FullType				// if no id: let it be 0,1 etc
-	SelfParam = mut? "self"
-	ModParam = id2 ":" FullType
+	ReturnType = "->" FullType
 	
 	FullType = mut? BasicType // mut is just &
 	BasicType
 		= defaultType
 		| NumberedRelation
+		| NumberedOperation
+		| NumberedProperty
 		| ArrayType
 		| SuperClass
 	
 	defaultType
 		= "value"
 		| "statement"
-		| operationWord
-		| propertyWord
 		| "bool"
 		| "int"
 		| "string"
-		| selfType
-		| noneType
-		| anyClass
-		| errorClass
-		| collectionClass
-		| comparableClass
-		| equatableClass
+		| "Self"
+		| "None"
+		| "Any"
+		| "Error"
+		| "Comparable"
+		| "Equatable"
+		| "Collection"
 	operationWord = "operation" | "op"
 	propertyWord = "property" | "prop"
 	
-	NumberedRelation = "relation" Numbering?
+	NumberedRelation = "relation" Numbering
+	NumberedOperation = operationWord Numbering
+	NumberedProperty = propertyWord MultiNumbering
+	MultiNumbering = "<" ListOf<number, ","> ">"
 	ArrayType = "[" FullType (";" number)? "]"
 	
 	ModBody = "{" ActionLine* "}"
@@ -127,9 +130,9 @@ Logos {
 		| ContinueLine
 		| MethodCall
 		| ModCall
-	MethodCall = VarOrType "." id2 Call
+	MethodCall = VarOrType "." id1 Call
 	VarOrType = Variable | CustomType
-	ModCall = id2 Call
+	ModCall = id1 Call
 	Call = "(" ListOf<Expr, ","> ")"
 	
 	Assignment = Variable "=" Expr
@@ -142,8 +145,9 @@ Logos {
 	BreakLine = break+
 	ContinueLine = continue+
 	
-	Return = returnOrYield Expr?
+	Return = returnOrYield DegreeUp? Expr?
 	returnOrYield = "return" | "yield"
+	DegreeUp = "." number
 	
 	EvalBool
 		= And
@@ -164,8 +168,7 @@ Logos {
 	ControlFlow = IfFlow | MatchFlow | ForFlow | WhileFlow
 	IfFlow = if EvalBool then Action ElseFlow?
 	ElseFlow = else Action
-	ForFlow = for Arg in Collection do Action
-	Arg = id2
+	ForFlow = for id1 in Collection do Action
 	Collection = LogosArray | Variable
 	WhileFlow = while EvalBool do Action
 	MatchFlow = match Variable ":" ListOf<MatchLine, ",">
@@ -190,7 +193,7 @@ Logos {
 		| VarField
 		| ModCall
 		| AssignedVariable
-	VarField = Variable "." Field				// field, list index, enum case
+	VarField = VarOrType "." Field				// field, list index, enum case
 	
 	Literal
 		= bool
@@ -202,9 +205,8 @@ Logos {
 	bool = true | false
 	
 	number = digit+
-	id1 = ~keyword idchar+					// data in header can start with a number
-	id2 = ~keyword idletter idchar*				// variables, modules etc; must be lowercase
-	id3 = ~keyword upper idchar*				// types must be capitalized
+	id1 = ~keyword idletter idchar*				// variables, modules etc; must be lowercase
+	id2 = ~keyword upper idchar*				// types must be capitalized
 	idchar = alnum | "_"
 	idletter = ~upper letter | "_"
 	keyword = key " " // ~alnum
@@ -233,14 +235,21 @@ Logos {
 		| break
 		| continue
 	//	| "len"
+		| "drop"
+		| "copy"
+	//	| "List"
+		| "truth"
+		| "type"
+		| "rel"
+		| "get"
+		| "get_mut"
+		| "read"
 	
-	DataVar = Variable | id1	// Can be a variable only if in mod
-	Operation = Variable
-	UserDefinedInfix = id2
+	DataVar = Variable	// Can be a variable only if in mod
 	
-	CustomType = id3			// struct, enum or class
-	AssignedVariable = id2
-	Field = id2 | number
+	CustomType = id2			// struct, enum or class
+	AssignedVariable = id1
+	Field = id1 | number
 	
 	mut = "mut"
 	none = "none"
