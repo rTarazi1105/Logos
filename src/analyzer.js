@@ -1,4 +1,3 @@
-// TODO Remove all "future"s
 // TODO Change most let to const
 // Note: In errors, "?!" should've been caught by parser
 
@@ -557,6 +556,42 @@ export default function analyze(match) {
   function mustBeMutRefable(x, at) {
     must(x?.kind === "Variable" || x?.kind === "Field", "Must be a variable or field", at)
   } 
+  
+  
+  function findMethod(subjType, methodStr, at) {
+        method = subjType?.methods.find(m => m.name === methodStr); // If impl, it will be found here (see ClassMod)
+        								// thus allowing override
+        if (method == null) {
+          // Search classes
+          
+          let classes = [];
+          const newClasses = context.lookup(subjType); // Works for classobjecttype (see ClassDecl)
+          classes.push(...newClasses);
+          
+          while (method == null) {
+            for (const classs in classes) {
+              method = classs.modules.find(m => m.name === methodStr);
+              
+              if (method != null) {
+                break;
+              }
+            }
+            
+            const oldClasses = classes;
+            classes = [];
+            for (const classs in oldClasses) {
+              const newClasses = context.lookup(classs);
+              classes.push(...newClasses);
+            }
+            if (classes.length === 0) {
+              must(false, "No method found", at);
+            }
+          }
+        }
+        mustNotBeNull(method.body, "Body not defined", at);
+    
+    return method;
+  }
   
   // Used up to here
   
@@ -1219,36 +1254,7 @@ export default function analyze(match) {
         mustBeCustomType(subjType, true, {at: varOrType});
         must(subjType?.kind !== "Enum", "Enum has no methods", {at: varOrType});
         
-        method = subjType?.methods.find(m => m.name === methodStr); // If impl, it will be found here (see ClassMod)
-        								// thus allowing override
-        if (method == null) {
-          // Search classes
-          
-          let classes = [];
-          const newClasses = context.lookup(subjType); // Works for classobjecttype (see ClassDecl)
-          classes.push(...newClasses);
-          
-          while (method == null) {
-            for (const classs in classes) {
-              method = classs.modules.find(m => m.name === methodStr);
-              
-              if (method != null) {
-                break;
-              }
-            }
-            
-            const oldClasses = classes;
-            classes = [];
-            for (const classs in oldClasses) {
-              const newClasses = context.lookup(classs);
-              classes.push(...newClasses);
-            }
-            if (classes.length === 0) {
-              must(false, "No method found", { at: methodId });
-            }
-          }
-        }
-        mustNotBeNull(method.body, "Body not defined", {at: methodId});
+        const method = findMethod(subjType, methodStr, {at: methodId});
         
         // Check mut self 
         mustNotBeNull(method.mutSelf, "Method must take self parameter", { at: methodId});
@@ -1637,7 +1643,6 @@ export default function analyze(match) {
       }
     },
 
-// TODO
     Return(returnOrYield, degreeUp, expr) {
       mustBeInAModule({ at: returnOrYield });
       const content = expr.rep();
@@ -1771,7 +1776,75 @@ export default function analyze(match) {
       return rep;
     },
     
-    // TODO: Complete control flow
+    ElseFlow(_else, action) {
+      return action.rep();
+    },
+    IfFlow(_if, condition, _then, action, alternate) {
+      const act = action.rep();
+      const ifFlow = core.ifFlow(condition.rep(), act, null);
+      if (alternate == null) {
+        return ifFlow;
+      }
+      
+      const alt = alternate.rep();
+      if (!compatible(alt.type, act.type)) {
+        if (compatible(act.type, alt.type) {
+          ifFlow.type = alt.type;
+        } else {
+          must(false, "Incompatible types", {at: alternate});
+        }
+      }
+      ifFlow.alternate = alt;
+      return ifFlow;
+    },
+    ForFlow(_for, id, _in, collection, _do, action) {
+      const idStr = id.sourceString;
+      mustNotAlreadyBeDeclared(idStr, {at: id});
+      
+      const coll = collection.rep();
+      
+      let first = null;
+      if (isArrayOrList(coll) === true) {
+        if (coll?.kind === "EmptyArray" || coll?.kind === "EmptyList" ) {
+          first = core.nullObject();
+        } else {
+          first = coll.contents[0];
+        }
+      } else {
+        first = core.methodCall(
+          coll,
+          findMethod(coll.type, "get", {at: collection}),
+          [0]
+        );
+      }
+      
+      // Can't create new child context cuz it should only be "modBody"s (for return & break)
+      context.add(idStr, core.variable(idStr, first));
+      const act = action.rep();
+      context.remove(idStr);
+      
+      return core.forFlow(idStr, coll, act);
+    },
+    WhileFlow(_while, condition, _do, action) {
+      return core.whileFlow(condition.rep(), action.rep());
+    },
+    IfEvalBool(_if, condition) {
+      return condition.rep();
+    },
+    MatchStart(x) {
+      let condition = x.rep();
+      if (condition?.type !== core.boolType) {
+        condition = core.matchConditionType(rep.type);
+      }
+      return condition;
+    },
+    MatchLine(conditions, _arrow, action) {
+      return core.matchLine(conditions.asIteration().children.map(c => c.rep()), action.rep());
+    },
+    MatchFlow(_match, variable, _colon, matchLines) {
+      return core.matchFlow(variable.rep(), matchLines.asIteration().children.map(l => l.rep()));
+    },
+    
     
     // 10. Literals
     

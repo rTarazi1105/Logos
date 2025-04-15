@@ -331,8 +331,8 @@ export function logosArray(contents) {
 export function emptyArray() {
   return { kind: "EmptyArray", type: arrayType(null, 0), contents: [] }
 }
-export function list(readables) {
-  return { kind: "List", type: listType(readables[0].type), readables }
+export function list(contents) {
+  return { kind: "List", type: listType(readables[0].type), contents }
 }
 export function emptyList(type) {
   return { kind: "EmptyList", type: listType(type), contents: [] }
@@ -354,8 +354,8 @@ export function forFlow(argName, collection, action) {
 export function matchFlow(variable, matchLines) {
   return { kind: "MatchFlow", variable, matchLines, type: matchLines[0].type }
 }
-export function matchLine(condition, action) { // condition can be type or "if"
-  return { kind: "MatchLine", condition, action, type: action.type }
+export function matchLine(conditions, action) { // conditions must be [boolType], incl type check (see below)
+  return { kind: "MatchLine", conditions, action, type: action.type }
 }
 export function matchConditionType(typeToMatch) {
   return { kind: "MatchConditionType", typeToMatch, type: boolType }
@@ -501,7 +501,7 @@ const typeMod = module(
 
 // Literals
 export function nullObject() { 
-  return { type: voidType }
+  return { kind: "NullObject", type: voidType }
 }
 
 
