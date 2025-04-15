@@ -32,7 +32,7 @@ export const statementType = struct(
 );
 export const valueType = struct(
   "value",
-  []
+  [field("name", stringType)]
 );
 valueType.methods.push(module(
   "rel",
@@ -52,16 +52,16 @@ export function readVar(variable) {
   return { kind: "ReadVar", variable }
 }
 
-export function variable(name, type, content) {
-  return { kind: "Variable", name, type, content }
+export function variable(name, content) {
+  return { kind: "Variable", name, content, type: content.type }
 }
 
 export function variableDeclaration(variable) {
-  return { kind: "VariableDeclaration", variable, type: "Action" };
+  return { kind: "VariableDeclaration", variable, isAction: true, type: voidType };
 }
 
 export function assignment(variable, readable) {
-  return { kind: "Assignment", variable, readable, type: "Action" }
+  return { kind: "Assignment", variable, readable, isAction: true, type: voidType }
 }
 
 export function struct(name, fields) {	// auto-impl superclasses
@@ -105,6 +105,10 @@ export function modBody(actions, returnType) {
 }
 
 export function classObjectType(classes) {
+// If two classes have a method of the same name, what is the priority?
+  //classes.sort(); 
+  // Let the user define priority
+  
   const name = classes[0].name;
   for (const classs in classes.slice(1)) {
     name = name + "+" + classs.name;
@@ -150,7 +154,7 @@ export function classDeclaration(classs) {
 
 
 export function value(name) {
-  return { type: "Value", name }
+  return { type: valueType, name }
 }
 
 export function relation(name, args, statement) {
@@ -236,43 +240,43 @@ export function statementDeclaration(statement) {
 
 // Increment and decrement aren't counted as actions as they will be subsumed into assignment
 export function increment(variable) {
-  return { kind: "Increment", variable, type: variable.type }
+  return { kind: "Increment", variable, isAction: true, type: voidType }
 }
 export function decrement(variable) {
-  return { kind: "Decrement", variable, type: variable.type }
+  return { kind: "Decrement", variable, isAction: true, type: voidType }
 }
 
 export function returnLine(expression, modBody) {
-  return { kind: "Return", expression, modBody, type: "Action" }
+  return { kind: "Return", expression, modBody, isAction: true, type: voidType }
 }
 
 export function yieldLine(expression, modBody) {
-  return { kind: "Yield", expression, modBody, type: "Action" }
+  return { kind: "Yield", expression, modBody, isAction: true, type: voidType }
 }
 
-export function breakLine(number) {
-  return { kind: "Break", number, type: "Action" } 
+export function breakLine(modBody) {
+  return { kind: "Break", modBody, isAction: true, type: voidType } 
 }
 
-export function continueLine(number) {
-  return { kind: "Continue", number, type: "Action" } 
+export function continueLine(modBody) {
+  return { kind: "Continue", modBody, isAction: true, type: voidType } 
 }
 
 // Variable constructors
-export function construct(struct, readables) {
-  return { kind: "Construct", readables, type: struct }
+export function construct(struct, contents) {
+  return { kind: "Construct", contents, type: struct }
 }
 
 export function methodCall(variable, method, args) {
-  return { kind: "MethodCall", variable, method, args, type: method.type.returnType}
+  return { kind: "MethodCall", variable, method, args, type: method.returnType}
 }
 
 export function associatedMethodCall(struct, method, args) {
-  return { kind: "AssociatedMethodCall", struct, method, args, type: method.type.returnType}
+  return { kind: "AssociatedMethodCall", struct, method, args, type: method.returnType}
 }
 
 export function modCall(mod, args) {
-  return { kind: "ModCall", mod, args, type: mod.type.returnType}
+  return { kind: "ModCall", mod, args, type: mod.returnType}
 }
 
 export function notVariable(boolean) {
@@ -291,10 +295,13 @@ export function inEquality(variable1, variable2, comparison) {
   return { kind: "VarInEquality", variable1, variable2, comparison, type: boolType }
 }
 // Comparisons
-export const lessThan = { name: "<", type: "Comparison" };
-export const greaterThan = { name: "<", type: "Comparison" };
-export const equalTo = { name: "==", type: "Comparison" };
-export const unequalTo = { name: "!=", type: "Comparison" };
+export function comparison(name) {
+  let classReq = "Equatable";
+  if (name === "<" || name === ">") {
+    classReq = "Comparable";
+  }
+  return { name, classReq, kind: "Comparison" }
+}
 
 	// x.i
 export function varField(variable, field) {	// includes list indices
@@ -333,22 +340,22 @@ export function emptyList(type) {
 
 // Control Flow
 export function ifFlow(condition, action, alternate) {
-  return { kind: "IfFlow", condition, action, alternate, type: action.returnType }
+  return { kind: "IfFlow", condition, action, alternate, type: action.type }
 }
 
 export function whileFlow(condition, action) {
-  return { kind: "WhileFlow", condition, action, type: action.returnType }
+  return { kind: "WhileFlow", condition, action, type: action.type }
 }
 
 export function forFlow(argName, collection, action) {
-  return { kind: "ForFlow", argName, collection, action, type: action.returnType }
+  return { kind: "ForFlow", argName, collection, action, type: action.type }
 }
 
 export function matchFlow(variable, matchLines) {
   return { kind: "MatchFlow", variable, matchLines, type: matchLines[0].type }
 }
 export function matchLine(condition, action) { // condition can be type or "if"
-  return { kind: "MatchLine", condition, action }
+  return { kind: "MatchLine", condition, action, type: action.type }
 }
 export function matchConditionType(typeToMatch) {
   return { kind: "MatchConditionType", typeToMatch, type: boolType }
@@ -389,12 +396,6 @@ const anyType = classObjectType([anyClass]);
         false,
         [parameter("i", false, intType)],
         anyType,
-        null
-      ), module(
-        "get_mut",
-        true,
-        [parameter("i", false, intType)],
-        voidType,
         null
       )]
     );

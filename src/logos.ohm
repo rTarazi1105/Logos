@@ -123,7 +123,7 @@ Logos {
 		= ModBody
 		| DataDecl
 		| Assignment
-		| Increment | Decrement
+		| Crement
 		| Return
 		| ControlFlow
 		| BreakLine
@@ -137,10 +137,10 @@ Logos {
 	
 	Assignment = Variable "=" Expr
 	Expr = mut? Readable
-	Readable = Construct | Literal | ControlFlow | LogosArray | Variable
+	Readable = Construct | Literal | ControlFlow | LogosArray | EvalBool | Variable | ModBody
 	Construct = CustomType "{" ListOf<Expr, ","> "}"
-	Increment = Variable "++"
-	Decrement = Variable "--"
+	Crement = Variable change
+	change = "++" | "--"
 	
 	BreakLine = break+
 	ContinueLine = continue+
@@ -234,16 +234,16 @@ Logos {
 		| "not"
 		| break
 		| continue
-	//	| "len"
+		| "len"
 		| "drop"
 		| "copy"
 	//	| "List"
-		| "truth"
+		| "truth" // for statement
 		| "type"
-		| "rel"
-		| "get"
-		| "get_mut"
-		| "read"
+		| "rel" // () for value
+		| "get" // () for Collection
+		| "read" // (mutref)
+		| "name" // for value
 	
 	DataVar = Variable	// Can be a variable only if in mod
 	

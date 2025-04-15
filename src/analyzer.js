@@ -27,6 +27,13 @@ class Context {
   add(name, entity) {
     this.locals.set(name, entity);
   }
+  remove(key) { // Used in drop()
+    location = this;
+    while (location.get(key) == null) {
+      location = location.parent;
+    }
+    location.delete(key);
+  }
   lookup(key) {
     return this.locals.get(key) || this.parent?.lookup(key);
   }
@@ -120,10 +127,15 @@ class Context {
   */
 
   static root() {
-
-    return new Context({
+    const context = new Context({
       locals: new Map(Object.entries(core.standardLibrary))
     });
+    context.classify(core.voidType, core.equatableClass);
+    context.classify(core.boolType, core.equatableClass);
+    context.classify(core.stringType, core.equatableClass);
+    context.classify(core.intType, core.comparableClass);
+    context.classify(core.comparableClass, core.equatableClass);
+    return context;
   }
   newChildContext(props) {
     return new Context({ ...this, ...props, parent: this, locals: new Map() });
@@ -134,7 +146,7 @@ export default function analyze(match) {
   let context = Context.root();
 
   function must(condition, message, errorLocation) {
-    if (!condition) {
+    if (condition !== true) {
       const prefix = errorLocation.at.source.getLineAndColumnMessage();
       throw new Error(`${prefix}${message}`);
     }
@@ -149,11 +161,22 @@ export default function analyze(match) {
   }
 
   function mustAlreadyBeDeclared(name, at) {
-    must(context.lookup(name) === true, `Identifier ${name} not declared`, at);
+    must(context.lookup(name), `Identifier ${name} not declared`, at);
   }
   
   function mustBeTypeT(e, type, at) {
     must(e.type === type, `Expected type ${type}`, at);
+  }
+  
+  function isArrayOrList(type) {
+    return type?.kind === "ArrayType" || type?.kind === "ListType"
+  }
+  
+  function mustHaveIndex(obj, i, at) {
+    if (obj?.type?.kind === "ArrayType") {
+      must(i > 0 && i < obj?.type?.len, "Index out of bounds", at);
+    }
+    must(obj?.type?.kind === "ListType", "Not an array or list", at);
   }
 
   function mustBeKindK(e, k, msg, at) {
@@ -162,10 +185,6 @@ export default function analyze(match) {
       message = `Expected kind ${k}`;
     }
     must(e?.kind === k, message, at);
-  }
-  
-  function mustBeAType(type, at) {
-    must(type?.isType === true, `Expected ${type} to be a type`, at);
   }
 
   function mustBeBoolean(e, at) {
@@ -178,7 +197,7 @@ export default function analyze(match) {
 
   function mustBeInteger(e, at) {
     mustBeTypeT(e, core.intType, "Expected an integer", at);
-    mustBeInt(e, at);
+    //mustBeInt(e, at);
   }
   
   function mustBeInt(n, at) {
@@ -197,15 +216,15 @@ export default function analyze(match) {
 
   function mustBeStatement(e, at) {
     must(
-      isStatement(e) === true,
+      isStatement(e),
       "Expected statement",
       at
     );
   }
 
-  function mustHaveClass(e, className, at) {
+  function mustHaveClass(type, className, at) {
     must(
-      context.lookupClass(e?.type, className) === true,
+      context.lookupClass(type, className),
       `Expected type to have class <${className}>`,
       at
     );
@@ -234,7 +253,7 @@ export default function analyze(match) {
   }
 */
 
-  function mustBothHaveTheSameType(e1, e2, at) {
+  function mustBothHaveSameType(e1, e2, at) {
     // must(e2.type === core.anyType || equivalent(e1.type, e2.type), "Operands do not have the same type", at)
     must(
       equivalent(e1.type, e2.type),
@@ -267,11 +286,11 @@ export default function analyze(match) {
   }
 
   function mustBeMutable(variable, at) {
-    must(variable.mutable === true, at);
+    must(variable.mutable, at);
   }
 
   function isDataType(x) {
-    return (x?.kind === "Value" ||
+    return (x?.type === core.valueType ||
     x?.kind === "Relation" ||
     x?.kind === "Infix" ||
     x?.kind === "Operation" ||
@@ -279,11 +298,11 @@ export default function analyze(match) {
   }
   
   function isAction(x) {
-    return (x?.type === "Action");
+    return (x?.isAction);
   }
   
   function mustBeAction(a, at) {
-    must(isAction(a) === true, "Expected action", at);
+    must(isAction(a), "Expected action", at);
   }
   
   function isDataDecl(x) {
@@ -294,14 +313,18 @@ export default function analyze(match) {
     return mustNotBeNull(x?.type, msg, at);
   }
   
-  function typeMustBeObject(type, at) {
-    mustNotBeNull(type, "Not an object (no type)", at);
+  function mustBeObject(x, at) {
+    if (isVariable(x) === true) {
+      return;
+    }
+    mustHaveType(x, "Not an object (no type)", at);
     must(//hasType(x) &&
-      !(isAction(x)) &&
-      !(isDataDecl(x)) &&
-      x?.kind !== "MatchConditionType", //&&
+      !(isAction(x?.type)) &&
+      !(isDataDecl(x?.type)) &&
+      x?.kind !== "MatchConditionType" &&
+      x?.type !== "Comparison",// &&
       //x?.kind !== "Field" &&
-      //x?.kind !== "Parameter" &&
+      //x?.kind !== "Parameter", &&
       //x?.kind !== "Variable",
       "Not an object"
     );
@@ -332,7 +355,11 @@ export default function analyze(match) {
   }
   
   function isVariable(e) {
-    e?.kind != null && (e.kind === "Variable")// || e.kind === "Parameter")
+    e?.kind === "Variable" || e?.kind === "Field" // || e.kind === "Parameter"
+  }
+  
+  function isCall(c) {
+    c?.kind === "ModCall" || c?.kind === "MethodCall" || c?.kind === "AssociatedMethodCall"
   }
 
   function mustBeAssignedVar(e, at) {
@@ -391,7 +418,7 @@ export default function analyze(match) {
       return true;
     }
     
-    mustHaveKindK(biggerType, "ClassObjectType", at);
+    mustBeKindK(biggerType, "ClassObjectType", at);
     
     const included = true;
     for classs in biggerType.classes {
@@ -407,21 +434,23 @@ export default function analyze(match) {
     if (targetType?.kind === "MutRefType" && sourceType?.kind !== "MutRefType") {
       return compatible(targetType.basicType, sourceType, at);
     }
+    if (targetType?.kind !== "MutRefType" && sourceType?.kind === "MutRefType") {
+      return compatible(sourceType.basicType, targetType, at);
+    }
     */
     
     return compatible(targetType, sourceType, at);
   }
 
-  function mustBeAssignable(content, variable, at) {
-    const target = variable.type;
+  function mustBeAssignable(content, targetType, at) {
     const source = content.type;
     
-    typeMustBeObject(source, at);
-    mustNotBeNull(target, "Variable has no type?!", at);
-    const sourceStr = typeDescription(source);
-    const targetStr = typeDescription(target);
+    mustBeObject(content, at);
+    mustNotBeNull(targetType, "Variable has no type?!", at);
+    const sourceStr = core.typeName(source);
+    const targetStr = core.typeName(targetType);
     const message = `Cannot assign a ${sourceStr} to a ${targetStr}`;
-    must(assignable(target, source, at), message, at);
+    must(assignable(targetType, source, at), message, at);
   }
 
   function mustHaveNumber(e, n, at) {
@@ -501,8 +530,12 @@ export default function analyze(match) {
     }
   }
 
-  function mustBeInLoop(at) {
-    must(context.inLoop, "Break can only appear in a loop", at);
+  function mustBeInLoop(breaking, at) {
+    let kind = "Continue";
+    if breaking {
+      kind = "Break";
+    }
+    must(context.inLoop, `${kind} can only appear in a loop`, at);
   }
 
   function mustBeInAModule(at) {
@@ -510,9 +543,16 @@ export default function analyze(match) {
   }
   
   function mustBeAType(t, at) {
-    must(t?.isType != null && t.isType === true, "Must be a type", at);
+    must(t?.isType, `Expected ${t} to be a type`, at);
   }
   
+  function mustBeCustomType(t, allowStd, at) {
+    mustBeAType(t, at);
+    if (!allowStd) {
+      must(t !== core.valueType && t!== core.statementType, "Cannot be statement or value structs", at);
+    }
+    must(t?.kind === "Struct" || t?.kind === "Enum" || t?.kind === "ClassObjectType", `Expected ${t} to be a custom type`, at);
+  }
   
   function mustBeMutRefable(x, at) {
     must(x?.kind === "Variable" || x?.kind === "Field", "Must be a variable or field", at)
@@ -534,7 +574,6 @@ export default function analyze(match) {
   function mustBeMutable(e, at) {
     must(isMutable(e), "Cannot assign to immutable variable", at);
   }
-  */
 
 
 
@@ -581,13 +620,21 @@ export default function analyze(match) {
       at
     );
   }
+  */
 
+
+
+
+// Taken care of by parser
+/*
   function mustBeCallable(e, at) {
     const callable =
-      e?.kind === "FilledStruct" || e?.kind === "FilledClass" || e.type?.kind === "FunctionType";
+      isVariable(e) || isCall(e);
     must(callable, "Call of non-function or non-constructor", at);
   }
+  */
 
+/*
   function mustNotReturnAnything(f, at) {
     const returnsNothing = f.type.returnType === core.voidType;
     must(returnsNothing, "Something should be returned", at);
@@ -602,6 +649,7 @@ export default function analyze(match) {
     const message = `${paramCount} argument(s) required but ${argCount} passed`;
     must(argCount === paramCount, message, at);
   }
+*/
 
   // BUILDER
   // Before .map(), use .children if + or *
@@ -627,7 +675,7 @@ export default function analyze(match) {
 
       if (relationId != null) {
         const relation = relationId.rep();
-        mustHaveKindK(relation, "Relation", { at: id });
+        mustBeKindK(relation, "Relation", { at: id });
         mustHaveNumber(relation.kind, 1, { at: id });
         context.addStatement(core.filledRelation(relation, [value]), true);
       }
@@ -768,6 +816,8 @@ export default function analyze(match) {
     
     // 2. Data expressions
     DataVar(id) {
+      return id.rep();
+      /*
       const variable = id.rep();
       if (isVariable(variable, { at: id })) {
         return variable;
@@ -777,13 +827,24 @@ export default function analyze(match) {
       mustNotBeNull(dataVar, "Data variable not found", { at: id });
       
       return rep;
+      */
+    },
+    
+    Statement(s) {
+      const statement = s.rep();
+      mustBeTypeT(statement, core.statementType, {at: s});
+      return statement;
+    },
+    
+    ParenStatement(_left, s, _right) {
+      return s.rep();
     },
 
     Equality(v1, _equals, v2) {
       const v1Rep = v1.rep();
       const v2Rep = v2.rep();
-      mustBeTypeT(v1Rep, "Value", { at: v1 });
-      mustBeTypeT(v2Rep, "Value", { at: v2 });
+      mustBeTypeT(v1Rep, core.valueType, { at: v1 });
+      mustBeTypeT(v2Rep, core.valueType, { at: v2 });
       return core.equalityStatement(v1Rep, v2Rep);
     },
     FilledInfix(s1, inf, s2) {
@@ -830,7 +891,7 @@ export default function analyze(match) {
         const argsRep = [];
         for (const arg in args.asIteration().children) {
           const value = arg.rep();
-          mustBeTypeT(value, "Value", {at: arg});
+          mustBeTypeT(value, core.valueType, {at: arg});
           argsRep.push(value);
         }
         mustHaveLength(argsRep, subject.kind.number, {at: args});
@@ -862,18 +923,18 @@ export default function analyze(match) {
         return statement.inner;
         
       return core.negation(statement);
-    }
+    },
     
     Statement_string(inner) {
       return core.customStatement(inner.sourceString);
-    }
+    },
     
     
     // 3. Types
     defaultType(id) {
       const idStr = id.sourceString;
       if idStr === "value" {
-        return "Value";
+        return core.valueType;
       } else if idStr === "statement" {
         return core.statementType;
       } else if idStr === "bool" {
@@ -904,24 +965,24 @@ export default function analyze(match) {
       */
       }
       
-    }
+    },
 
     Numbering(_leftArrow, number, _rightArrow) {
       return numerify(number);
     },
     MultiNumbering(_left, numbers, _right) {
       return numbers.map(n => numerify(n));
-    }
+    },
     
     NumberedRelation(_, numbering) {
       return core.relationType(numbering.rep());
-    }
+    },
     NumberedOperation(_, numbering) {
       return core.operationType(numbering.rep());
-    }
+    },
     NumberedProperty(_, numbers) {
       return core.propertyType(numbers.map(n => n.rep()));
-    }
+    },
     
     ArrayType(_left, fullType, _colon, number, _right) {
       const basicType = fullType.rep();
@@ -929,13 +990,14 @@ export default function analyze(match) {
         return core.listType(basicType);
       }
       return core.arrayType(basicType, number.rep());
-    }
+    },
     
     CustomType(id) {
       const idStr = id.sourceString;
       let type = context.lookup(idStr);
       
-      mustNotBeNull(type, { at: id });
+      mustNotBeNull(type, "No type found", { at: id });
+      mustBeCustomType(type, false, { at: id }); // tho allowStd == false is required by parser anyway
       return type;
     },
     
@@ -957,11 +1019,11 @@ export default function analyze(match) {
       }
       
       for (const type in types) {
-        mustHaveKindK(type, "Class", { at: customTypes });
+        mustBeKindK(type, "Class", { at: customTypes });
         context.classify(classObjectType, type);
       }
       return classObjectType;
-    }
+    },
     
     FullType(mutref, basicType) {
       const type = basicType.rep();
@@ -972,24 +1034,35 @@ export default function analyze(match) {
       }
       
       return type;
-    }
+    },
         
     // 4. Expressions in mods
     Expr(mutable, readable) {
-      let content = readable.rep();
+      let obj = readable.rep();
+      
+      mustBeObject(obj, "Not an object?!", { at: readable });
+      
       if (mutable != null) {
-        if (content?.type?.kind === "MutRefType") {
-          content = content.variable; // Pass on the ref to the original variable
+        mustBeMutRefable(obj, {at: mutable }); // Must be variable or field
+        
+        if (obj?.content?.type?.kind === "MutRefType") {
+          // Then obj is a variable containing a mutref to another variable
+          obj = obj.content.variable;
         }
         
-        mustBeKindK(content, "Variable", "Mutable reference requires a variable", { at: readable });
-        // Cannot be field or mod parameter
-        
-        return core.mutRef(content);
+        return core.mutRef(obj);
       }
       
-      return content;
-    }
+      
+      if (obj?.kind === "Variable") {
+        obj = obj.content;
+      }
+      if (obj?.type?.kind === "MutRefType") {
+        obj = obj.variable.content;
+      }
+      
+      return obj;
+    },
     
     Construct(structId, _brack1, exprs, _brack2) {
       const struct = structId.rep();
@@ -998,7 +1071,7 @@ export default function analyze(match) {
       mustBeKindK(struct, "Struct", null, {at: structId});
       mustHaveEqualLength(struct.fields, args, { at: structId });
       for (const [index, field] in struct.fields.entries()) {
-        mustBeAssignable(field, args[index], { at: structId });
+        mustBeAssignable(field, args[index].type, { at: structId });
       }
       
       return core.construct(struct, args);
@@ -1006,19 +1079,20 @@ export default function analyze(match) {
     
     ArrayNumber(_colon, inner) {
       let num = inner.rep();
-      if num?.kind === "Variable" {
+      if isVariable(num) {
         num = num.content;
       }
       
       mustBeInteger(num, { at: inner });
       return num;
-    }
+    },
     
     FullArray(_left, readables, number, _right) {
       const contents = readables.asIteration().children.map(r => r.rep());
       if (contents.length === 0) {
         return core.emptyArray();
       } else {
+        mustAllHaveSameType(contents, {at: readables});
         return core.logosArray(contents);
       }
     },
@@ -1027,7 +1101,7 @@ export default function analyze(match) {
       let len = length.rep();
       if (isVariable(len)) {
         mustBeInteger(len);
-        len = len.contents;
+        len = len.content;
       }
       const contents = Array(len).fill(readable.rep());
       return core.logosArray(contents);
@@ -1035,7 +1109,7 @@ export default function analyze(match) {
     
     AssignedVariable(name) {
       const variable = context.lookup(name.sourceString);
-      //mustBeAssignedVar(variable, { at: name }); // Can be data declared
+      //mustBeAssignedVar(variable, { at: name }); // Can be data-declared
       return variable;
     },
 
@@ -1051,12 +1125,27 @@ export default function analyze(match) {
       } else {
         mustHaveType(called, "Var has no type?!", { at: id })
         
+        if (fieldStr === "len") {
+          if (called.type?.kind === "ArrayType") {
+            return called.type.len;
+          } else {
+            must(false, "Expected array", {at: varOrType});
+          }
+        }
+        
+        
         if (called.type?.kind === "Struct") {
           const field = called.type.fields.find((f) => f.name === fieldStr);
           return core.varField(called, field);
         } else {
           // Must be list index
           
+          const number = numerify(fieldStr, { at: id });
+          
+          mustHaveIndex(called, number {at: id});
+          const basicType = called.basicType;
+          
+          /* // If we let collections use indices
           mustHaveClass(variable.type, "Collection", { at: id });
           const implName = core.implName(variable.type, "Collection");
           
@@ -1064,10 +1153,9 @@ export default function analyze(match) {
           mustNotBeNull(impl, "No impl found", { at: id });
           
           const basicType = impl.modules.find(m => m.name === "get").returnType;
+          */
           
-          const number = numerify(fieldStr, { at: id });
-          
-          return core.varIndex(variable, number, basicType);
+          return core.varIndex(called, number, basicType);
         }
       }
     },
@@ -1080,6 +1168,104 @@ export default function analyze(match) {
       }
       const param = core.field(idStr, type.rep());
       return param;
+    },
+    
+    Call(_left, args, _right) {
+      return args.asIteration().children.map(a => a.rep());
+    },
+
+    ModCall(id, args) {
+      const idStr = id.sourceString;
+      const module = context.lookup(idStr);
+      
+      mustNotBeNull(module, "No module found");
+      mustBeKindK(module, "Module", "Expected a module");
+      
+      const modCall = core.modCall(module, args.map(a => a.rep()));
+      
+      mustHaveEqualLength(module.params, modCall.args);
+      for (const [i, arg] in modCall.args.entries()) {
+        mustBeAssignable(arg, module.params[i].type);
+      }
+      
+      if (module.name === "drop") {
+        mustAlreadyBeDeclared(modCall.args[0], {at: args});
+        context.remove(idStr);
+      }
+      
+      return modCall;
+    },
+
+    MethodCall(varOrType, _dot, methodId, args) {
+      const subj = varOrType.rep();
+      const methodStr = methodId.sourceString;
+      const argsRep = args.map(a => a.rep());
+      
+      let method = null;
+      let methodCall = null;
+      if (subj?.isType === true) {
+        mustBeKindK(subj, "Struct", {at: varOrType});
+        
+        method = subj.methods.find(m => m.name === methodStr);
+        must(method.mutSelf == null, "Method takes self parameter", {at: methodId});
+        
+        methodCall = core.associatedMethodCall(subj, method, argsRep);
+      } else {
+        let subjType = subj.type;
+        if subjType?.kind === "MutRefType" {
+          subjType = subj.content.variable.type;
+        }
+        
+        mustBeCustomType(subjType, true, {at: varOrType});
+        must(subjType?.kind !== "Enum", "Enum has no methods", {at: varOrType});
+        
+        method = subjType?.methods.find(m => m.name === methodStr); // If impl, it will be found here (see ClassMod)
+        								// thus allowing override
+        if (method == null) {
+          // Search classes
+          
+          let classes = [];
+          const newClasses = context.lookup(subjType); // Works for classobjecttype (see ClassDecl)
+          classes.push(...newClasses);
+          
+          while (method == null) {
+            for (const classs in classes) {
+              method = classs.modules.find(m => m.name === methodStr);
+              
+              if (method != null) {
+                break;
+              }
+            }
+            
+            const oldClasses = classes;
+            classes = [];
+            for (const classs in oldClasses) {
+              const newClasses = context.lookup(classs);
+              classes.push(...newClasses);
+            }
+            if (classes.length === 0) {
+              must(false, "No method found", { at: methodId });
+            }
+          }
+        }
+        mustNotBeNull(method.body, "Body not defined", {at: methodId});
+        
+        // Check mut self 
+        mustNotBeNull(method.mutSelf, "Method must take self parameter", { at: methodId});
+        if (method.mutSelf === true) {
+          mustBeKindK(subj.type, "MutRefType", {at: varOrType});
+        }
+        // If method is not mutSelf, can use a mut still
+        
+        methodCall = core.methodCall(subj, method, argsRep);
+      }
+      
+      mustHaveEqualLength(method.params, methodCall.args);
+      for (const [i, arg] in methodCall.args.entries()) {
+        mustBeAssignable(arg, method.params[i].type);
+      }
+      
+      return methodCall;
     },
 
     // 5. Type declarations
@@ -1165,7 +1351,7 @@ export default function analyze(match) {
       return core.parameter(idStr, type.rep());
     },
     ModHead(_paren1, params, _paren2, returnType) {
-      let returnTypeRep = returnType.rep();
+      let returnTypeRep = core.voidType;
       if (returnType != null) {
         returnTypeRep = returnType.rep();
       }
@@ -1195,7 +1381,8 @@ export default function analyze(match) {
     },
     
     ModBody(_brack1, actionLines, _brack2) {
-      const modBody = core.modBody([], core.voidType);
+      const modBody = core.modBody([], null);
+      
       context = context.newChildContext({
         inLoop: false,
         module: modBody
@@ -1205,9 +1392,16 @@ export default function analyze(match) {
         const actionRep = action.rep();
         mustBeAction(actionRep, { at: action });
         modBody.actions.push(actionRep);
+        // returnLine sets type/returnType via context
+        // This allows us to use closures as objects
       }
       
       context = context.parent;
+      
+      if (context.module?.kind === "Module") {
+        must(compatible(modBody.type, context.module.returnType), "Incorrect return type", {at: actionLines});
+      }
+      
       return modBody;
     },
     
@@ -1278,27 +1472,32 @@ export default function analyze(match) {
     },
 
     ClassMod(_mod, id, head, body) {
-      const classOrImpl = context.module;
       let selfType = null;
-      if context.module?.kind === "Class" {
+      if (context.module?.kind === "Class") {
         selfType = core.classObjectType([context.module]);
-      } else if context.module?.kind === "ClassImpl" {
+      } else if (context.module?.kind === "ClassImpl") {
         selfType = context.module.subjectType;
       } else {
         must(false, "ClassMod outside of Class or ClassImpl?!", {at: id});
       }
       
       const idStr = id.sourceString;
-      const contextualName = classOrImpl.name + "." + idStr;
+      let subjName = context.module.name;
+      if (context.module.kind === "ClassImpl") {
+        subjName = context.module.subjectType.name;
+      }
+      const contextualName = subjName + "." + idStr;
       mustNotAlreadyBeDeclared(contextualName, { at: id });
 
       const mod = head.rep();
       mod.name = idStr;
-      classs.modules.push(mod); // Recursion
-      if context.module.kind === "Class" {
-        context.add(contextualName, mod);
-      } else {
+      context.add(contextualName, mod);
+      
+      context.module.modules.push(mod); // whether Class or ClassImpl
+      if (context.module.kind === "ClassImpl") {
         mustHaveModule(context.module.classs, mod);
+        context.module.subjectType.methods.push(mod);
+        context.module.modules.push(
       }
 
       context = context.newChildContext({
@@ -1308,7 +1507,7 @@ export default function analyze(match) {
       for (const param in mod.params) {
         context.add(param.name, param);
       }
-      if mod.mutSelf != null {
+      if (mod.mutSelf != null) {
         const selfParam = core.parameter("self", selfType));
         if mod.mutSelf === true {
           core.parameter.type = core.mutRefType(selfType);
@@ -1322,6 +1521,9 @@ export default function analyze(match) {
         bodyRep = body.rep();
       }
       mod.body = bodyRep;
+      if (context.module.kind === "ClassImpl") {
+        mustNotBeNull(bodyRep, "Must have body", {at: body});
+      }
 
       context = context.parent;
       return mod;
@@ -1362,10 +1564,12 @@ export default function analyze(match) {
 
       // Check superclasses
       const superClasses = superClass.rep();
-      for (superC in superClasses) {
-        // classs.modules are filtered by whether the superclass has them, not whether the body is null
+      for (const superC in superClasses) {
+        // classs.modules are filtered by whether the superclass has them, not whether the body in the superclass is null
         // allowing override
-        const impl = core.classImpl(classs, superC, classs.modules.filter(mod => hasModule(superC, mod));
+        const implModules = classs.modules.filter(mod => hasModule(superC, mod));
+        
+        const impl = core.classImpl(classs, superC, implModules);
         
         mustNotAlreadyBeDeclared(impl.name, {at: superClass});
         context.add(impl.name, impl);
@@ -1379,10 +1583,10 @@ export default function analyze(match) {
 
     ClassImpl(structId, _impl, classId, body) {
       const struct = structId.rep();
-      mustHaveKindK(struct, "Struct", {at: structId});
+      mustBeKindK(struct, "Struct", {at: structId});
       
       const classs = classId.rep();
-      mustHaveKindK(classs, "Class", {at: classId});
+      mustBeKindK(classs, "Class", {at: classId});
       
       const impl = core.classImpl(struct, classs, []);
       mustNotAlreadyBeDeclared(impl.name, {at: structId});
@@ -1402,9 +1606,9 @@ export default function analyze(match) {
       context = context.parent;
       return impl;
     },
+    // TODO: Check modbody return type
     
     // 8. Actions
-    // TODO Check and redo
 
     ActionLine(action, _semicolon) {
       return action.rep();
@@ -1415,121 +1619,162 @@ export default function analyze(match) {
       const subj = context.lookup(idStr);
       
       let obj = expr.rep();
-      typeMustBeObject(obj.type, { at: id});
-      if (mut != null) {
-        mustBeMutRefable(obj); // Confirm obj is variable or field
-        
-        
-        
-        if (obj.type?.kind === "MutRefType") {
-          // mut mut A => mut A
-          // Creates a new mutref from the same source
-          obj = core.mutRef(obj.variable);
-        } else {
-        }
-      }
-      
-      
-        if (obj.type?.kind === "MutRefType" && variable.type?.kind !== "MutRefType") {
-          // Implicit read()
-          obj = obj.variable;
+      // All conversion of muts and all is taken care of in Expr
       
       if (subj == null) {
-        newVar = core.variable(idStr, obj.type, obj);
-        context.add(idStr,newVar);
+        newVar = core.variable(idStr, obj);
+        context.add(idStr, newVar);
         return core.variableDeclaration(newVar);
       } else {
+        mustBeAssignable(obj, subj.content.type, {at: id} );
         
-          return core.assignment(variable, obj);
+        return core.assignment(subj, obj);
+        // At the next stage:
+        // x: bool = b: bool --> x.content = b;
+        // x: mut bool = b: bool --> x.variable.content = b;
+        // x: bool = b: mut bool --> x.content = read(b);
+        // x: mut bool = b: mut bool --> x.variable = b.variable
+      }
+    },
+
+// TODO
+    Return(returnOrYield, degreeUp, expr) {
+      mustBeInAModule({ at: returnOrYield });
+      const content = expr.rep();
+      const yielding = (returnOrYield.sourceString === "yield");
+      let contentType = content.type;
+      if yielding {
+        contentType = core.listType(contentType);
+      }
+      
+      let modBodyContext = context;
+      if (degreeUp == null) {
+        // Go to highest mod
+        while (modBodyContext.parent?.module?.kind === "ModBody") {
+          modBodyContext = modBodyContext.parent;
         }
-        
-        if (obj.type?.kind === "" && 
-      }
-    },
-    
-    Call(_left, args, _right) {
-      return args.asIteration().children.map(a => a.rep());
-    },
-
-    MethodCall(varOrType, _dot, methodId, args) {
-      const subjectRep = varOrType.rep();
-      if (isVariable(subjectRep)) {
-        return
-      
-      } else if (subjectRep?.kind === "FilledType") {
-        const methodName = subjectRep.inner.name + methodId.sourceString; // hook
-        
-        
       } else {
-        must(false, "Cannot call this object", { at: varOrType });
+        let d = degreeUp.rep();
+        while (d > 0) {
+          mustNotBeNull(modBodyContext.parent, "Too high a degree to return", {at: degreeUp});
+          modBodyContext = modBodyContext.parent;
+        }
       }
-      //const method = 
       
-      
-      const idStr = id.sourceString;
-      //const variable = context.lookup(
-      const method = context.lookup(id.sourceString);
-      //mustBeCallable(method, { at: id });
-      // TODO Either the method exists, or a Future
-      mustHaveCorrectArgumentCount(args.children.length, method.params.length, {
-        at: id,
-      });
-      
-      // TODO: Fix MustBeAssignable
-      args.children.forEach((arg, i) => {
-        mustBeAssignable(
-          arg.rep(),
-          { toType: method.params[i].type },
-          { at: arg }
-        );
-      });
-      return core.methodCall(
-        
-        method,
-        args.children.map((arg) => arg.rep())
-      );
-    },
-
-    ModCall(id, args) {
-      // TODO: drop(x) will remove it - if it's a variable
-      
-      const idStr = id.sourceString;
-      const module = context.lookup(idStr);
-      must(module?.kind != null && module?.kind === "Module", "Expected a module", { at: id });
-      for (arg in args.children) {
-        const argRep = arg.rep();
-        //mustHaveKindK(argRep, 
+      const modBody = modBodyContext.module;
+      if (modBody.type == null) {
+        modBody.type = contentType; // If no actions, it will be null --> error in ModBody
+      } else {
+        if (!compatible(contentType, modBody.type)) {
+          if (compatible(modBody.type, contentType)) {
+            modBody.type = contentType;
+          } else {
+            must(false, "Incompatible return type", {at: expr}); // hook
+          }
+        }
       }
-      const argsRep = args.rep();
       
-      
-      const methodCall = MethodCall();
-      return core.modCall(module, methodCall);
+      if (yielding) {
+        return core.yieldLine(content, modBody);
+      } else {
+        return core.returnLine(content, modBody);
+      }
+    },
+    
+    change(pm) {
+      return pm.sourceString === "++";
     },
 
-    Return(returnOrYield, expr) {
-      mustBeInAModule({ at: _return }); // hook
-      const functionContext = context.module;
-      mustBeReturnable(expr.rep(), { from: functionContext }, { at: expr });
-      return core.returnLine(expr.rep());
-    },
-
-    Increment(id, _plus) {
-      const variable = context.lookup(id.sourceString);
+    Crement(id, change) {
+      const variable = context.lookup(id.sourceString); // hook
       mustBeInteger(variable, { at: id });
-      mustBeMutable(variable, { at: id });
-      return core.incrementVar(variable);
+      if (change.rep()) {
+        return core.increment(variable);
+      } else {
+        return core.decrement(variable);
+      }
     },
-
-    Decrement(id, _minus) {
-      const variable = context.lookup(id.sourceString);
-      mustBeInteger(variable, { at: id });
-      mustBeMutable(variable, { at: id });
-      return core.decrementVar(variable);
+    
+    BreakLine(breaks) {
+      mustBeInLoop(true, {at: breaks});
+      let n = breaks.children.length;
+      let modBodyContext = context;
+      while (n > 0) {
+        if context.inLoop {
+          n = n - 1;
+        }
+        modBodyContext = context.parent;
+        mustNotBeNull(modBodyContext, "Too many breaks", {at: breaks});
+        if (modBodyContext.module?.kind !== "ModBody") {
+          must(false, "Too many breaks", {at: breaks});
+        }
+      }
+      return core.breakLine(modBodyContext.module);
+    },
+    
+    ContinueLine(conts) {
+      mustBeInLoop(true, {at: conts});
+      let n = conts.children.length;
+      let modBodyContext = context;
+      while (n > 0) {
+        if context.inLoop {
+          n = n - 1;
+        }
+        modBodyContext = context.parent;
+        mustNotBeNull(modBodyContext, "Too many continues", {at: conts});
+        if (modBodyContext.module?.kind !== "ModBody") {
+          must(false, "Too many continues", {at: conts});
+        }
+      }
+      return core.continueLine(modBodyContext.module);
     },
     
     
-    // 9. Literals
+    // 9. ControlFlow and EvalBool
+    Collection(x) {
+      const rep = x.rep();
+      mustBeObject(rep, {at: x});
+      if (isArrayOrList(rep?.type) !== true) {
+        mustHaveClass(rep?.type, "Collection", {at: x});
+      }
+      return rep;
+    },
+    InEqual(id) {
+      return core.comparison(id.sourceString);
+    },
+    InEqualities(exp1, cmp, exp2) {
+      const e1 = exp1.rep();
+      const e2 = exp2.rep();
+      const c = cmp.rep();
+      
+      mustHaveClass(e1?.type, c.classReq);
+      mustHaveClass(e2?.type, c.classReq);
+      mustBothHaveSameType(e1, e2);
+      
+      return core.inEquality(exp1.rep(), comp1.rep(), exp2.rep());
+    },
+    Not(exp1) {
+      return core.notVariable(exp1.rep());
+    },
+    And(exp1, _and, exp2) {
+      return core.andVariable(exp1.rep(), exp2.rep());
+    },
+    Or(exp1, _or, exp2) {
+      return core.orVariable(exp1.rep(), exp2.rep());
+    },
+    ParenEvalBool(_left, exp1, _right) {
+      return exp1.rep();
+    },
+    EvalBool(e) {
+      const rep = e.rep();
+      mustBeTypeT(rep, core.boolType, {at: e})
+      return rep;
+    },
+    
+    // TODO: Complete control flow
+    
+    // 10. Literals
+    
     none(_) {
       return core.nullObject();
     },
@@ -1540,8 +1785,11 @@ export default function analyze(match) {
       return false;
     },
     number(_digits) {
-      return Number(this.sourceString);
+      return numerify(this.sourceString);
     },
+    string(_chars) {
+      return this.sourceString; // includes quotes for now
+    }
   });
 
   return builder(match).rep();
