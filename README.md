@@ -150,7 +150,7 @@ Loves coding and cats. 🐈‍⬛
 ### Akash Beh 
 A linux enthusiast who loves to einstein bagels, minecraft, and math.
 ### Nick Aurino
-A computer enthusiast who enjoys anime and manga the most but also really love gaming. 
+A computer enthusiast who enjoys games and his dog! 
 
 **Repo Link:**
 [Github Pages Hosting](https://rtarazi1105.github.io/Logos/)
