@@ -70,6 +70,27 @@ mod main(source: ContradictionSource, realSource: Traceable) {
   print(str(x.data)); // Output: [false, false, false, true]
 }
 ```
+```logos
+// Return flow with branching and match statements
+mod returning(input: bool) -> bool {
+  v = if true then input else false;
+
+  result = match v:
+    bool + if input => "Input: true",
+    None + if input => "This cannot happen",
+    None => "Input: None",
+
+    bool + if !v => {
+      print("Hello");
+      if v {
+        return true;
+      } else return .0 "The match line output is here"; // .0 exits match scope
+    },
+
+    bool + if v => "Redundant but allowed",
+    bool => "Will never reach";
+}
+```
 
 **Collaborators:**
 
