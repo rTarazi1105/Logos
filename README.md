@@ -32,8 +32,47 @@ class Traceable {
   mod source(self) -> Any;
 }
 ```
+```
+// An enum with multiple variant forms
+enum Contradiction {
+  direct: None,
+  indirect: bool,
+  bool, // equivalent to 0: bool
+}
+```
+```
+// A struct holding structured data
+struct ContradictionSource {
+  source: string,
+  data: mut [bool; 4],
+  notes: mut [string],
+  contradiction: Contradiction,
+}
+```
+```
+// A constructor for the struct
+mod ContradictionSource.new() {
+  return Self {
+    source: "root",
+    data: mut [false; 4],
+    notes: mut [],
+    contradiction: Contradiction.direct(none),
+  };
+}
+```
+```
+// A main function with mutation and logic
+mod main(source: ContradictionSource, realSource: Traceable) {
+  if source == none {
+    x = ContradictionSource.new();
+  }
+  x.data.3 = true;
+  print(str(x.data)); // Output: [false, false, false, true]
+}
+```
 
 **Collaborators:**
+
 ### Rayane Tarazi 
 A computer science enthusiast and gamer, always wanting to explore more about AI and leveling up both in code and in games. 😎	
 ### Daniel Munoz 
