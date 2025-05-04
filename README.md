@@ -26,13 +26,13 @@ Features:
 
 ## Examples:
 
+```logos
 // A class with a behavior (like an interface)
 class Traceable {
   mod source(self) -> Any;
 }
-
-
 ```
+
 **Collaborators:**
 ### Rayane Tarazi 
 A computer science enthusiast and gamer, always wanting to explore more about AI and leveling up both in code and in games. 😎	
