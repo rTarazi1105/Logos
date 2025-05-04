@@ -32,7 +32,7 @@ class Traceable {
   mod source(self) -> Any;
 }
 ```
-```
+```logos
 // An enum with multiple variant forms
 enum Contradiction {
   direct: None,
@@ -40,7 +40,7 @@ enum Contradiction {
   bool, // equivalent to 0: bool
 }
 ```
-```
+```logos
 // A struct holding structured data
 struct ContradictionSource {
   source: string,
@@ -49,7 +49,7 @@ struct ContradictionSource {
   contradiction: Contradiction,
 }
 ```
-```
+```logos
 // A constructor for the struct
 mod ContradictionSource.new() {
   return Self {
@@ -60,7 +60,7 @@ mod ContradictionSource.new() {
   };
 }
 ```
-```
+```logos
 // A main function with mutation and logic
 mod main(source: ContradictionSource, realSource: Traceable) {
   if source == none {
