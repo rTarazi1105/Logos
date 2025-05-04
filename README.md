@@ -26,125 +26,76 @@ Features:
 
 ## Examples:
 
-### Importing:
-use mod::axioms;
-
-mod Main {
-	axioms::Axioms;
-	
-	define var 2 = succ(1);
-	
-}
-
-### Priority:
-```
-import here::basics;
-use basics::ifthen;
-use basics::Contradiction;
-
-statement A : "It's raining";
-statement B : "The ground is wet";
-statement C : "It rained yesterday";
-
-statement X : A and C ifthen B;		// Priority of operations over "and"
-
-mod Examine(S: statement) { // given that the statement is true
-	if S.truth != true throw Contradiction;
-	match S {
-		conjunction(C) => for I in C {
-			assume I;
-			Examine(I);
-		},
-		disjunction(D) => {
-			T = none;
-			all_false_except_one = true;
-			for I in D
-				if I.truth == none {
-					if T != none break;
-					T = I;
-				} else if I.truth
-					all_false_except_one = false;
-			if all_false_except_one assume T;
-		},
-	}
-}
-
-mod Main {
-	assume X;
-	
-	print B.truth;		// none
-	
-	assume C; Examine(X);
-	print B.truth;		// true
+```logos
+// A class with a behavior (like an interface)
+class Traceable {
+  mod source(self) -> Any;
 }
 ```
-### Structs:
-```
-struct Matrix {
-	contents: [[Int; _]; _]
-}
-
-mod Matrix.cols -> Int {
-	self.0.len
-}
-mod Matrix.rows -> Int {
-	self.0[0].len
-}
-
-// inheritance
-struct Matrix.Stochastic {
-	sum: Int
-}
-
-mod createMatrix(cols: Int, rows: Int) {
-	Matrix {
-		contents: [[0; rows]; cols],
-	}
-}
-
-mod createStochastic(cols: Int, rows: Int) {
-	Matrix.Stochastic {
-		contents: [[0; rows]; cols],
-		sum: 100
-	}
+```logos
+// An enum with multiple variant forms
+enum Contradiction {
+  direct: None,
+  indirect: bool,
+  bool, // equivalent to 0: bool
 }
 ```
-### Generator:
-```
-mod Range(n: Int) -> Collection {
-	i = 0;
-	while i != n {
-		yield i;
-		i = i + 1;
-	}
+```logos
+// A struct holding structured data
+struct ContradictionSource {
+  source: string,
+  data: mut [bool; 4],
+  notes: mut [string],
+  contradiction: Contradiction,
 }
 ```
-### Axioms:
-```
-import here::basics;
-use basics.data;
-use basics::Set;
-
-property is_injective f : f(x) = f(y) ifthen x = y;
-// x and y are ∀ by default
-
-var 0 : "zero";
-
-// succession
-func succ x : "custom" and succ(x) != 0 and is_injective(succ);
-
-var 1 : 1 = succ(0);
-
-Set Naturals(x : ∃succ(x));
-
-mod Axioms {
-	assume ∃succ(0); assume ∃succ(x) ifthen ∃succ(succ(x));
-	if Naturals.Contains(succ(0)).truth print "success"
+```logos
+// A constructor for the struct
+mod ContradictionSource.new() {
+  return Self {
+    source: "root",
+    data: mut [false; 4],
+    notes: mut [],
+    contradiction: Contradiction.direct(none),
+  };
 }
 ```
+```logos
+// A main function with mutation and logic
+mod main(source: ContradictionSource, realSource: Traceable) {
+  if source == none {
+    x = ContradictionSource.new();
+  }
+  x.data.3 = true;
+  print(str(x.data)); // Output: [false, false, false, true]
+}
+```
+```logos
+// Return flow with branching and match statements
+mod returning(input: bool) -> bool {
+  v = if true then input else false;
+
+  result = match v:
+    bool + if input => "Input: true",
+    None + if input => "This cannot happen",
+    None => "Input: None",
+
+    bool + if !v => {
+      print("Hello");
+      if v {
+        return true;
+      } else return .0 "The match line output is here"; // .0 exits match scope
+    },
+
+    bool + if v => "Redundant but allowed",
+    bool => "Will never reach";
+}
+```
+
 **Collaborators:**
+
 ### Rayane Tarazi 
-A computer science enthusiast and gamer, always wanting to explore more about AI and leveling up both in code and in games. 😎	
+A computer science enthusiast and gamer, always looking to leve up. 😎	
 ### Daniel Munoz 
 Loves coding and cats. 🐈‍⬛
 ### Akash Beh 
