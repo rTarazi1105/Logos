@@ -2,9 +2,10 @@ operation ifthen : P,Q : not P or Q;
 
 struct Contradiction {} // comment
 
-mod Add(array: mut [bool;]) -> bool {
+// Treating a boolean array as a binary number, add 1
+mod add(list: mut [bool;]) -> bool {
 	i = 0;
-	while array.i != none do
+	while list.i != none do
 		if args.i == false then {
 			args.i = true;
 			return false;
@@ -15,12 +16,12 @@ mod Add(array: mut [bool;]) -> bool {
 	return true;
 }
 
-mod Identity(operation1: op, operation2: op) -> bool {
+mod identity(operation1: op, operation2: op) -> bool {
 	n = operation1.args.len;
 	if n != operation2.args.len then return false;
 	
 	args = [false; n];
-	while !Add(args) do {
+	while !add(mut args) do {
 		if operation1(args) != operation2(args) then return false;
 	};
 	return true;
@@ -28,12 +29,11 @@ mod Identity(operation1: op, operation2: op) -> bool {
 
 
 struct Set { relation<1> }
-mod Set.Contains(self, v: value) -> statement {
-	s : self.0[v];
-	return s;
+mod Set.contains(self, v: value) -> statement {
+	return self.0[v];
 }
 
 mod Set.universal() -> Set {
-	universal : x : true;
+	relation universal : x : true;
 	return Set { universal };
 }

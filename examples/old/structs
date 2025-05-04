@@ -1,12 +1,15 @@
 struct Matrix {
-	contents: [[Int; _]; _]
+	contents: [[Int; ]; ]
 }
 
 mod Matrix.cols -> Int {
-	self.0.len
+	contents = self.0;
+	return contents.len;
 }
 mod Matrix.rows -> Int {
-	self.0[0].len
+	contents = self.0;
+	first_column = contents.0;
+	return first_column.len;
 }
 
 // inheritance

@@ -1,0 +1,37 @@
+class Matrix {
+	mod get_contents(self) -> [[int;];] ;
+	
+	mod cols_len(self) -> int {
+	    contents = self.get_contents();
+	    return contents.len;
+	}
+	
+	mod rows_len(self) -> int {
+	    contents = self.get_contents();
+	    first_column = contents.0;
+	    return first_column.len;
+	}
+}
+
+struct SquareMatrix {
+	length: int,
+	contents: [[int;];]
+}
+
+mod SquareMatrix.new(size: int) -> Self {
+	SquareMatrix {
+		length: size, // No floats so int is better
+		contents: [[0; size]; size]
+	}
+}
+
+SquareMatrix impl Matrix {
+	mod get_contents(self) -> [[int; ]; ] {
+		return self.contents;
+	}
+	
+	// Following method is optional because already had body above
+	mod cols_len(self) -> int {
+		return self.length;
+	}
+}

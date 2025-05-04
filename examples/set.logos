@@ -1,0 +1,9 @@
+struct Set { relation<1> }
+mod Set.contains(self, v: value) -> statement {
+	return self.0[v];
+}
+
+mod Set.universal() -> Set {
+	universal : x : true; // relation declaration
+	return Set { universal };
+}

@@ -1,0 +1,31 @@
+// new2.logos
+
+is_zero: x: "it's zero"; // relation declaration
+value n0: is_zero(n0);
+value n1;
+
+// mut is basically a reference (&) in C
+mod change(ref: mut bool, target: bool) {
+  ref = true;
+}
+
+mod mutability() {
+  // Invalid:
+  // ref = mut true;	mut must be followed by a variable
+  
+  // A: bool
+  A = true;
+  // B: mut bool
+  B = mut A; // B now changes A
+  B = false; // A == false
+  
+  // C: bool
+  C = B; // C == A == false
+  
+  // D: mut bool
+  D = mut B; // D = mut A;
+  B = mut C; // Still D = mut A, because D's type is mut bool. There can never be mut mut bool
+  D = true; // A == false
+}
+
+

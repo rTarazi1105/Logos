@@ -1,0 +1,11 @@
+// Priority goes 1) or 2) and 3) not
+
+op example :	a,b,c : a and b or c;
+op v1 : 	a,b,c : (a and b) or c;
+op v2 : 	a,b,c : a and (b or c);
+
+mod main() {
+	print(str(example[true, false, true]));	// "false"
+	print(str(v1[true, false, true]));		// "false"
+	print(str(v2[true, false, true]));		// "true"
+}

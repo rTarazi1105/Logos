@@ -1,0 +1,43 @@
+// Treating a boolean array as a binary number, add 1
+mod add(list: mut [bool;]) -> bool {
+	i = 0;
+	while list.i != none do
+		if args.i == false then {
+			args.i = true;
+			return false;
+		} else {
+			args.i = false;
+			i++;
+		};
+	return true;
+}
+
+// "op" and "operation" are interchangeable type names
+mod identity(op1: op, op2: op) -> bool {
+	
+	n = op1.args.len;
+	if n != op2.args.len then return false;
+	
+	args = [false; n];
+	while !add(mut args) do {
+		statement1 : op1[args] == op2[args];
+		if !statement1.truth then return false;
+	};
+	return true;
+}
+
+
+op if1: p,q: not (p and not q)
+op if2: p,q: not p or q
+op if3: p,q: (not p) or q
+op iff: p,q: (p and q) or (not p and not q)
+
+mod main() {
+	print(str(identity(if1, if2)));	// true
+	print(str(identity(if1, if3)));	// true
+	print(str(identity(if2, if3)));	// true
+	
+	print(str(identity(iff, if1)));	// false
+	print(str(identity(iff, if2)));	// false
+	print(str(identity(iff, if3)));	// false
+}

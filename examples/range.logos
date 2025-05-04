@@ -1,0 +1,25 @@
+struct Range {
+	current: int,
+	len: int
+}
+
+mod Range.new(n: int) -> Self {
+	Range {
+		current: 0,
+		len: n
+	}
+}
+
+Range impl Collection {
+	mod get(self, i: int) -> int {
+		if i < len & i > 0 {
+			i
+		}
+	}
+}
+
+mod main() {
+	for i in Range.new(3) {
+		print("Hello world".concat("i"));
+	}
+}

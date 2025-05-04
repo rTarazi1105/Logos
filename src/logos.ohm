@@ -38,8 +38,8 @@ Logos {
 		= defaultInfix
 		| id1
 	defaultInfix
-		= "and"							// and
-		| "or"							// or
+		= "or"							// or
+		| "and"							// and
 		| "=="							// equals for statements
 	
 	DataDeclLine = DataDecl ";"
@@ -150,8 +150,8 @@ Logos {
 	DegreeUp = "." number
 	
 	EvalBool
-		= And
-		| Or
+		= Or
+		| And
 		| Not
 		| bool
 		| InEqualities
@@ -238,12 +238,14 @@ Logos {
 		| "drop"
 		| "copy"
 	//	| "List"
-		| "truth" // for statement
-		| "type"
-		| "rel" // () for value
-		| "get" // () for Collection
-		| "read" // (mutref)
-		| "name" // for value
+		| "truth" // field on statement
+		| "type" // mod(Any)
+		| "rel" // method on value: lists all relations
+		| "get" // method on Collection
+		| "read" // mod(mutref)
+		| "name" // field on value
+		| "concat" // method on string
+		| "args" // field on operation, relation or property
 	
 	DataVar = Variable	// Can be a variable only if in mod
 	

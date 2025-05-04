@@ -29,8 +29,9 @@ mod ContradictionSource.new() {
 }
 
 mod main(source: ContradictionSource, realSource: Traceable) {
+  x = none;
   if source == none {
-  x = ContradictionSource.new();
+    x = ContradictionSource.new();
   }
   x.data.3 = true;
   print(str(x.data)); // [false, false, false, true]
