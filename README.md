@@ -74,7 +74,7 @@ mod main(source: ContradictionSource, realSource: Traceable) {
 **Collaborators:**
 
 ### Rayane Tarazi 
-A computer science enthusiast and gamer, always wanting to explore more about AI and leveling up both in code and in games. 😎	
+A computer science enthusiast and gamer, always looking to leve up. 😎	
 ### Daniel Munoz 
 Loves coding and cats. 🐈‍⬛
 ### Akash Beh 
