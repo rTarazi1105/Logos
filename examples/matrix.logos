@@ -1,5 +1,5 @@
 class Matrix {
-	mod get_contents(self) -> [[int;];] ;
+	mod get_contents(self) -> [[int]] ;
 	
 	mod cols_len(self) -> int {
 	    contents = self.get_contents();
@@ -15,7 +15,7 @@ class Matrix {
 
 struct SquareMatrix {
 	length: int,
-	contents: [[int;];]
+	contents: [[int]]
 }
 
 mod SquareMatrix.new(size: int) -> Self {
@@ -26,7 +26,7 @@ mod SquareMatrix.new(size: int) -> Self {
 }
 
 SquareMatrix impl Matrix {
-	mod get_contents(self) -> [[int; ]; ] {
+	mod get_contents(self) -> [[int]] {
 		return self.contents;
 	}
 	

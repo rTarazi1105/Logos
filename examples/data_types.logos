@@ -1,22 +1,18 @@
-// new1
-
-// class Any {}
-
-class Traceable {
-  mod source(self) -> Any;
+struct Contradiction {
+  ContradictionVariant, // 0: ContradictionVariant
+  source: ContradictionSource
 }
 
-enum Contradiction {
+enum ContradictionVariant {
   direct: None,
-  indirect: bool,
-  bool, // equivalent to 0: bool
+  indirect: bool
 }
 
 struct ContradictionSource {
   source: string,
   data: mut [bool; 4],
   notes: mut [string],
-  contradiction: Contradiction,
+  contradiction: Contradiction
 }
 
 mod ContradictionSource.new() {
@@ -24,15 +20,16 @@ mod ContradictionSource.new() {
     source: "root",
     data: mut [false; 4],
     notes: mut [],
-    contradiction: Contradiction.direct(none),
+    contradiction: Contradiction { none },
   };
 }
 
-mod main(source: ContradictionSource, realSource: Traceable) {
-  x = none;
-  if source == none {
-    x = ContradictionSource.new();
+class Traceable {
+  mod source(self) -> Any;
+}
+
+Contradiction impl Traceable {
+  mod source(self) -> ContradictionSource {
+    self.source
   }
-  x.data.3 = true;
-  print(str(x.data)); // [false, false, false, true]
 }

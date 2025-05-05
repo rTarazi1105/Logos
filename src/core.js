@@ -26,6 +26,12 @@ export const intType = { kind: "IntType", isType: true }
 export const stringType = { kind: "StringType", isType: true }
 export const voidType = { kind: "VoidType", isType: true }
 
+stringType.methods.push(module(
+  "concat",
+  [],
+  stringType
+));
+
 export const statementType = struct(
   "statement",
   [field("truth", boolType)]
@@ -38,7 +44,7 @@ valueType.methods.push(module(
   "rel",
   [],
   listType(relationType(null))
-);
+));
 
 
 export function mutRefType(basicType) {
@@ -310,8 +316,8 @@ export function varField(variable, field) {	// includes list indices
 export function varIndex(variable, index, type) { // get type from arrayType.basicType
   return { kind: "VarIndex", variable, index, type }
 }
-export function enumCase(enumeration, field) {
-  return { kind: "EnumCase", enumeration, field, type: field.type }
+export function enumCase(enumeration, content, enumCase) {
+  return { kind: "EnumCase", enumeration, content, enumCase, type: content.type }
 }
 
 	// Collections
@@ -369,7 +375,9 @@ export const intrinsic = { kind: "Intrinsic", todo: true };
 // Standard operations
 const andInfix = infix("and",intrinsic);
 const orInfix = infix("or", intrinsic);
-const equalInfix = infix("==", intrinsic);
+const iffInfix = infix("<=>", intrinsic);
+const ifThenInfix = infix("=>", intrinsic);
+const thenIfInfix = infix("<=", intrinsic);
 
 
 const anyClass = classs(
@@ -378,15 +386,10 @@ const anyClass = classs(
 );
 const anyType = classObjectType([anyClass]);
 
+// Error causes the program to immediately stop when encountered
     const errorClass = classs(
       "Error",
-      [module(
-        "crash",
-        false,
-        [],
-        boolType,
-        null
-      )]
+      []
     );
     
     const collectionClass = classs(
@@ -518,7 +521,9 @@ export const standardLibrary = Object.freeze({
   //print: intrinsicFunction("print", anyToVoidType),
   "and": andInfix,
   "or": orInfix,
-  "==": equalInfix,
+  "<=>": iffInfix,
+  "=>": ifThenInfix,
+  "<=": thenIfInfix,
   "Any": anyClass,
   "Error": errorClass,
   "Ordering": orderingEnum,

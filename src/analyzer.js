@@ -413,22 +413,28 @@ export default function analyze(match) {
   }
   
   function compatible(smallerType, biggerType, at) {
-    if equivalent(smallerType, biggerType, at) {
+    if (equivalent(smallerType, biggerType, at)) {
+      return true;
+    }
+    
+    if (biggerType?.kind === "ListType" && smallerType?.kind === "ArrayType") {
       return true;
     }
     
     mustBeKindK(biggerType, "ClassObjectType", at);
     
     const included = true;
-    for classs in biggerType.classes {
-      if context.lookupClass(smallerType, classs) !== true {
+    for (const classs in biggerType.classes) {
+      if (context.lookupClass(smallerType, classs) !== true) {
         included = false;
       }
     }
     return included;
   }
   
+  /*
   function assignable(targetType, sourceType, at) {
+    
     /*
     if (targetType?.kind === "MutRefType" && sourceType?.kind !== "MutRefType") {
       return compatible(targetType.basicType, sourceType, at);
@@ -436,10 +442,11 @@ export default function analyze(match) {
     if (targetType?.kind !== "MutRefType" && sourceType?.kind === "MutRefType") {
       return compatible(sourceType.basicType, targetType, at);
     }
-    */
+    ///*
     
     return compatible(targetType, sourceType, at);
   }
+  */
 
   function mustBeAssignable(content, targetType, at) {
     const source = content.type;
@@ -449,7 +456,7 @@ export default function analyze(match) {
     const sourceStr = core.typeName(source);
     const targetStr = core.typeName(targetType);
     const message = `Cannot assign a ${sourceStr} to a ${targetStr}`;
-    must(assignable(targetType, source, at), message, at);
+    must(compatible(targetType, source, at), message, at);
   }
 
   function mustHaveNumber(e, n, at) {
@@ -471,6 +478,24 @@ export default function analyze(match) {
 
   function mustHaveDistinctFields(type, at) {
     mustBeDistinct(type.fields, "Fields must be distinct", at);
+  }
+  
+  function casesMustHaveDistinctTypes(enumeration, at) {
+    const msg = "Cases must be of distinct types";
+    
+    const setOfCases = new Set(enumeration.cases.map(c => c.type));
+    must(setOfCases.size === enumeration.cases.length, msg, at);
+    
+    const entries = enumeration.cases.entries();
+    for (const [i, laterType] in entries) {
+      for (const [j, earlierType] in entries) {
+        if (j === i) {
+          break;
+        }
+        
+        must(!compatible(laterType, earlierType), msg, at);
+      }
+    }
   }
 
   function mustHaveDistinctModules(classs, at) {
@@ -890,19 +915,15 @@ export default function analyze(match) {
     },
     defaultInfix(id) {
       const idStr = id.sourceString;
-      if (idStr === "and") {
-        return core.standardLibrary["and"];
-      } else if (idStr === "or") {
-        return core.standardLibrary["or"];
-      } else if (idStr === "==") {
-        return core.standardLibrary["=="];
-      } else {
-        must(false, "No default infix?!", { at: id });
-      }
+      
+      const result = core.standardLibrary[idStr];
+      
+      mustNotBeNull(result, "No default infix?!", {at: id});
+      return result;
     },
     Infix(id) {
       const defaultInfix = id.rep();
-      if defaultInfix != null {
+      if defaultInfix?.kind === "Infix" {
         return defaultInfix;
       }
       
@@ -929,17 +950,26 @@ export default function analyze(match) {
           mustBeTypeT(value, core.valueType, {at: arg});
           argsRep.push(value);
         }
-        mustHaveLength(argsRep, subject.kind.number, {at: args});
+        if (subject.kind.number !== null) {
+          mustHaveLength(argsRep, subject.kind.number, {at: args});
+        }
         return core.filledRelation(subject, argsRep);
         
       } else if (subject?.kind === "Property") {
         const argsRep = [];
-        for (const arg in args.asIteration().children) {
+        for (const [i,arg] in args.asIteration().children.entries()) {
           const relation = arg.rep();
           mustBeKindK(relation, "Relation", null, {at: arg});
+          
+          if (subject.kind.numbers !== null) {
+            const relationArgsNumber = subject.kind.numbers[i];
+            mustNotBeNull(relationArgsNumber, "Too many relation arguments", {at: args});
+            mustHaveNumber(relation.type, relationArgsNumber, {at: args});
+          }
+          
           argsRep.push(relation);
         }
-        mustHaveLength(argsRep, subject.kind.number, {at: args});
+        
         return core.filledProperty(subject, argsRep);
       
       } else {
@@ -1036,6 +1066,9 @@ export default function analyze(match) {
       return type;
     },
     
+    ColonSuperClass(_colon, superClass) {
+      return superClass.rep();
+    }
     SuperClass(customTypes) {
       const types = customTypes.map(t => t.rep());
       const classObjectType = core.classObjectType(types);
@@ -1099,17 +1132,27 @@ export default function analyze(match) {
       return obj;
     },
     
-    Construct(structId, _brack1, exprs, _brack2) {
-      const struct = structId.rep();
+    Construct(id, _brack1, exprs, _brack2) {
+      const rep = id.rep();
       const args = exprs.asIteration().children.map(e => e.rep());
       
-      mustBeKindK(struct, "Struct", null, {at: structId});
-      mustHaveEqualLength(struct.fields, args, { at: structId });
-      for (const [index, field] in struct.fields.entries()) {
-        mustBeAssignable(field, args[index].type, { at: structId });
+      if (rep?.kind === "Enum") {
+        mustHaveLength(args, 1);
+        
+        const enumCase = enumeration.cases.find(c => compatible(c.type, rep.type));
+        mustNotBeNull(enumCase, "No case found", {at: id});
+        
+        return core.enumCase(rep, args[0], enumCase);
+        
+      } else {
+        mustBeKindK(rep, "Struct", null, {at: id});
+        for (const [index, field] in rep.fields.entries()) {
+          mustBeAssignable(field, args[index].type, { at: id });
+        }
+        mustHaveEqualLength(rep.fields, args, { at: id });
+        return core.construct(rep, args);
       }
       
-      return core.construct(struct, args);
     },
     
     ArrayNumber(_colon, inner) {
@@ -1148,23 +1191,23 @@ export default function analyze(match) {
       return variable;
     },
 
-    VarField(varOrType, _dot, fieldId) {
-      const called = varOrType.rep();
+    VarField(variable, _dot, fieldId) {
+      const called = variable.rep();
       const fieldStr = fieldId.sourceString; // .trim()?
       
-      if (called?.kind === "Enum") {
-        const casee = called.cases.find((c) => c.name === fieldStr);
-        mustNotBeNull(casee, "No such case", { at: varOrType });
-        return core.enumCase(called, casee);
-        
-      } else {
-        mustHaveType(called, "Var has no type?!", { at: id })
-        
+      const calledType = called.type;
+      mustNotBeNull(calledType, "Var has no type?!", { at: id });
+      
+      
+      
+
         if (fieldStr === "len") {
           if (called.type?.kind === "ArrayType") {
             return called.type.len;
           } else {
-            must(false, "Expected array", {at: varOrType});
+            if (called.type?.kind // hook
+            
+            must(false, "Expected array", {at: variable}); // Not list
           }
         }
         
@@ -1192,7 +1235,6 @@ export default function analyze(match) {
           
           return core.varIndex(called, number, basicType);
         }
-      }
     },
 
     // Misnomer: Actually a field, or a case for enums
@@ -1341,6 +1383,7 @@ export default function analyze(match) {
       }
       enumeration.cases = params;
       mustHaveDistinctFields(enumeration, { at: id });
+      casesMustHaveDistinctTypes(enumeration, {at: id});
       mustNotBeSelfContaining(enumeration, { at: id });
 
       context = context.parent;
@@ -1557,6 +1600,11 @@ export default function analyze(match) {
 
       const classs = core.classs(idStr, []);
       context.add(idStr, classs);
+      
+      const superClasses = superClass.rep();
+      for (const superC in superClasses) {
+        context.classify(classs, superC);
+      }
 
       context = context.newChildContext({
         inLoop: false,
@@ -1569,7 +1617,6 @@ export default function analyze(match) {
       
 
       // Check superclasses
-      const superClasses = superClass.rep();
       for (const superC in superClasses) {
         // classs.modules are filtered by whether the superclass has them, not whether the body in the superclass is null
         // allowing override
@@ -1581,7 +1628,6 @@ export default function analyze(match) {
         context.add(impl.name, impl);
         
         mustImplAllModules(impl, superC, {at: superClass});
-        context.classify(classs, superC);
       }
       
       return core.classDeclaration(classs);
@@ -1674,7 +1720,7 @@ export default function analyze(match) {
           if (compatible(modBody.type, contentType)) {
             modBody.type = contentType;
           } else {
-            must(false, "Incompatible return type", {at: expr}); // hook
+            must(false, "Incompatible return type", {at: expr});
           }
         }
       }
@@ -1691,7 +1737,7 @@ export default function analyze(match) {
     },
 
     Crement(id, change) {
-      const variable = context.lookup(id.sourceString); // hook
+      const variable = context.lookup(id.sourceString);
       mustBeInteger(variable, { at: id });
       if (change.rep()) {
         return core.increment(variable);
@@ -1804,7 +1850,7 @@ export default function analyze(match) {
       const coll = collection.rep();
       
       let first = null;
-      if (isArrayOrList(coll) === true) {
+      if (isArrayOrList(coll?.type)) {
         if (coll?.kind === "EmptyArray" || coll?.kind === "EmptyList" ) {
           first = core.nullObject();
         } else {

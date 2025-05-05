@@ -38,9 +38,11 @@ Logos {
 		= defaultInfix
 		| id1
 	defaultInfix
-		= "or"							// or
-		| "and"							// and
-		| "=="							// equals for statements
+		= "and"					// and
+		| "or"					// or
+		| "<=>"					// if and only if
+		| "<="					// backwards if
+		| "=>"					// if
 	
 	DataDeclLine = DataDecl ";"
 	DataDecl
@@ -76,7 +78,8 @@ Logos {
 	SelfParam = mut? "self"
 	ModParam = id1 ":" FullType
 	
-	ClassDecl = "class" id2 ":" SuperClass? ClassBody
+	ClassDecl = "class" id2 ColonSuperClass? ClassBody
+	ColonSuperClass = ":" SuperClass
 	SuperClass = ListOf<CustomType, "+">
 	ClassBody = "{" ClassMod* "}"
 	ClassMod = "mod" id1 ModHead ModBodyOrColon
@@ -111,10 +114,11 @@ Logos {
 	operationWord = "operation" | "op"
 	propertyWord = "property" | "prop"
 	
-	NumberedRelation = "relation" Numbering
-	NumberedOperation = operationWord Numbering
-	NumberedProperty = propertyWord MultiNumbering
+	NumberedRelation = "relation" Numbering?
+	NumberedOperation = operationWord Numbering?
+	NumberedProperty = propertyWord MultiNumbering?
 	MultiNumbering = "<" ListOf<number, ","> ">"
+	
 	ArrayType = "[" FullType (";" number)? "]"
 	
 	ModBody = "{" ActionLine* "}"
@@ -150,8 +154,8 @@ Logos {
 	DegreeUp = "." number
 	
 	EvalBool
-		= Or
-		| And
+		= And
+		| Or
 		| Not
 		| bool
 		| InEqualities
@@ -163,7 +167,7 @@ Logos {
 	Not = "!" EvalBool
 		
 	InEqualities = Expr InEqual Expr
-	InEqual = "<" | ">" | "==" | "!="
+	InEqual = "<" | ">" | "==" | "!=" | ">=" | "=<" 
 	
 	ControlFlow = IfFlow | MatchFlow | ForFlow | WhileFlow
 	IfFlow = if EvalBool then Action ElseFlow?
@@ -193,7 +197,7 @@ Logos {
 		| VarField
 		| ModCall
 		| AssignedVariable
-	VarField = VarOrType "." Field				// field, list index, enum case
+	VarField = Variable "." Field				// field, list index, enum case
 	
 	Literal
 		= bool
@@ -224,6 +228,8 @@ Logos {
 		| "mod"
 		| "class"
 		| "impl"
+		| "and"
+		| "or"
 		| if
 		| then
 		| else
@@ -234,10 +240,9 @@ Logos {
 		| "not"
 		| break
 		| continue
-		| "len"
+		| "len" // on Collection OR relation, op or prop's args
 		| "drop"
 		| "copy"
-	//	| "List"
 		| "truth" // field on statement
 		| "type" // mod(Any)
 		| "rel" // method on value: lists all relations
@@ -245,7 +250,6 @@ Logos {
 		| "read" // mod(mutref)
 		| "name" // field on value
 		| "concat" // method on string
-		| "args" // field on operation, relation or property
 	
 	DataVar = Variable	// Can be a variable only if in mod
 	

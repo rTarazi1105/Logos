@@ -1,5 +1,5 @@
 // Treating a boolean array as a binary number, add 1
-mod add(list: mut [bool;]) -> bool {
+mod add(list: mut [bool]) -> bool {
 	i = 0;
 	while list.i != none do
 		if args.i == false then {

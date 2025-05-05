@@ -1,0 +1,48 @@
+property injective f<2> : f[x,y] => x = y;
+
+value n0 : "zero";	// natural number 0
+exists : k : "exists";
+
+// Succession
+// y = succ(x)
+succ : x,y : "y is the successor of x" and exists[x] and exists[y] and not y = 0 and injective[succ];
+
+// Natural numbers
+value n1: succ[n0,n1];
+value n2: succ[n1,n2];
+value n3: succ[n2,n3];
+
+// Enough manual creation of numbers
+mod generate_successor(v: value) -> value {
+	value new_natural: succ[v, new_natural];
+	return new_natural;
+}
+
+mod generate_natural(k: int) -> value {
+	if k == 0 then 
+		return n0 
+	else if k < 0 then
+		return none
+	else {
+		k--;
+		one_less = generate_natural(k); // Recurse
+		new_natural = generate_successor(one_less);
+		return new_natural;
+	};
+}
+// This doesn't waste storage because
+// if no mutable reference is made to one_less within its closure,
+// it is merged with other values with which it is equal
+// (or, more generally, for whom the same relations apply).
+
+
+struct Set {
+	relation<1>
+}
+naturals_relation: n: exists[m] and succ[m,n];
+
+mod Set.naturals() -> Self {
+	return Self {
+		naturals_relation
+	};
+}
