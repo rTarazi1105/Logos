@@ -14,14 +14,14 @@ Logos {
 		
 		
 	Statement
-		= bool
-		| string
-		| Equality
+		= Equality
 		| FilledInfix
 		| FilledOperation
 		| FilledRelationOrProp
 		| Negation
+		| bool
 		| DataVar
+		| string
 		| ParenStatement
 	ParenStatement = "(" Statement ")"
 	Negation = "not" Statement
@@ -240,7 +240,8 @@ Logos {
 		| "not"
 		| break
 		| continue
-		| "len" // on Collection OR relation, op or prop's args
+		| "len" // on Collection OR relation or op's args
+		| "lens" // prop's args' numbers
 		| "drop"
 		| "copy"
 		| "truth" // field on statement

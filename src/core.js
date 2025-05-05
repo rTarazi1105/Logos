@@ -2,13 +2,39 @@ export function program(sections) {
   return { kind : "Program", sections }
 }
 
+// Used to define several things
+// needed in module bodies rather than "null" 
+// because for a class, module may actually be null
+export const intrinsic = { kind: "Intrinsic", todo: true };
+
 // Strings
 export function implName(typeName, className) {
  return typeName + ".impl." + className;
 }
 
+
 export function typeName(type) {
     if (typeof type === "string") return type;
+    
+    if (type?.kind === "RelationType") {
+      return "relation<" + type.number + ">";
+    }
+    if (type?.kind === "OperationType") {
+      return "operation<" + type.number + ">";
+    }
+    if (type?.kind === "PropertyType") {
+      let name = "property<";
+      for (const n in type.numbers) {
+        name = name + n.toString() + ","
+      }
+      name = name.slice(0, -1);
+      name = name + ">";
+      return name;
+    }
+    
+    return type.name;
+    
+    /*
     if (
       type.kind === "Struct" 
       || type.kind === "Enum"
@@ -17,20 +43,16 @@ export function typeName(type) {
       || type.kind === "ListType"
     ) return type.name;
     
-    throw new Error("TBD");
+    return type.kind; // BoolType, Relation, etc
+    //throw new Error("TBD");
+    */
 }
 
 // Primitives
-export const boolType = { kind: "BoolType", isType: true }
-export const intType = { kind: "IntType", isType: true }
-export const stringType = { kind: "StringType", isType: true }
-export const voidType = { kind: "VoidType", isType: true }
-
-stringType.methods.push(module(
-  "concat",
-  [],
-  stringType
-));
+export const boolType = { kind: "BoolType", name: "bool", isType: true }
+export const intType = { kind: "IntType", name: "int", isType: true }
+export const stringType = { kind: "StringType", name: "string", isType: true }
+export const voidType = { kind: "VoidType", name: "null", isType: true }
 
 export const statementType = struct(
   "statement",
@@ -42,8 +64,10 @@ export const valueType = struct(
 );
 valueType.methods.push(module(
   "rel",
+  null,
   [],
-  listType(relationType(null))
+  listType(relationType(null)),
+  intrinsic
 ));
 
 
@@ -107,7 +131,7 @@ export function module(name, mutSelf, params, returnType, body) {
 }
 
 export function modBody(actions, returnType) {
-  return { kind: "ModBody", actions, type: returnType }
+  return { kind: "ModBody", actions, returnType }
 }
 
 export function classObjectType(classes) {
@@ -128,7 +152,8 @@ export function classs(name, modules) {	// auto-impl "
 
 
 export function classImpl(type, classs, modules) {
-  return { kind: "ClassImpl", name: implName(typeName(type), classs.name), subjectType: type, classs, modules }
+  const typeName = type.name;
+  return { kind: "ClassImpl", name: implName(typeName, classs.name), subjectType: type, classs, modules }
 }
 	// Elements
 export function field(name, type) {	// or param
@@ -219,6 +244,9 @@ export function statementTruth(statement) {
   return { kind: "StatementTruth", statement, type: boolType }
 }
 
+export function namedStatement(name, inner) {
+  return { kind: "NamedStatement", name, inner, type: statementType }
+}
 	// Declarations
 export function valueDeclaration(value) {
   return { kind: "ValueDeclaration", value, type: "DataDecl" }
@@ -227,7 +255,7 @@ export function relationDeclaration(relation) {
   return { kind: "RelationDeclaration", relation, type: "DataDecl" }
 }
 export function operationDeclaration(operation) {
-  return { kind: "OperationDeclaration", operation, type; "DataDecl" }
+  return { kind: "OperationDeclaration", operation, type: "DataDecl" }
 }
 export function infixDeclaration(infix) {
   return { kind: "InfixDeclaration", infix, type: "DataDecl" }
@@ -239,12 +267,11 @@ export function assumptionDeclaration(statement, truth) {
   return { kind: "AssumptionDeclaration", statement, truth, type: "DataDecl" }
 }
 export function statementDeclaration(statement) {
-  return { kind: "StatementDeclaration", statement, type: "DataDecl" }
+  return { kind: "StatementDeclaration", namedStatement, type: "DataDecl" }
 }
 
 // Actions
 
-// Increment and decrement aren't counted as actions as they will be subsumed into assignment
 export function increment(variable) {
   return { kind: "Increment", variable, isAction: true, type: voidType }
 }
@@ -322,12 +349,12 @@ export function enumCase(enumeration, content, enumCase) {
 
 	// Collections
 export function arrayType(basicType, len) {
-  const typeName = typeName(basicType);
+  const typeName = basicType.name;
   return { kind: "ArrayType", name: `[${typeName}, ${len}]`, basicType, len, isType: true }
 }
 
 export function listType(basicType) {	// array but growable
-  const typeName = typeName(basicType);
+  const typeName = basicType.name;
   return { kind: "ListType", name: `[${typeName}]`, basicType, isType: true }
 }
 
@@ -346,19 +373,19 @@ export function emptyList(type) {
 
 // Control Flow
 export function ifFlow(condition, action, alternate) {
-  return { kind: "IfFlow", condition, action, alternate, type: action.type }
+  return { kind: "IfFlow", condition, action, alternate, type: action.type, isAction: true }
 }
 
 export function whileFlow(condition, action) {
-  return { kind: "WhileFlow", condition, action, type: action.type }
+  return { kind: "WhileFlow", condition, action, type: action.type, isAction: true }
 }
 
 export function forFlow(argName, collection, action) {
-  return { kind: "ForFlow", argName, collection, action, type: action.type }
+  return { kind: "ForFlow", argName, collection, action, type: action.type, isAction: true }
 }
 
 export function matchFlow(variable, matchLines) {
-  return { kind: "MatchFlow", variable, matchLines, type: matchLines[0].type }
+  return { kind: "MatchFlow", variable, matchLines, type: matchLines[0].type, isAction: true }
 }
 export function matchLine(conditions, action) { // conditions must be [boolType], incl type check (see below)
   return { kind: "MatchLine", conditions, action, type: action.type }
@@ -366,11 +393,6 @@ export function matchLine(conditions, action) { // conditions must be [boolType]
 export function matchConditionType(typeToMatch) {
   return { kind: "MatchConditionType", typeToMatch, type: boolType }
 }
-
-
-// Used to define several things
-// needed in modules rather than "null" because for a class, module may actually be null
-export const intrinsic = { kind: "Intrinsic", todo: true };
 
 // Standard operations
 const andInfix = infix("and",intrinsic);
@@ -500,6 +522,17 @@ const typeMod = module(
   voidType,
   intrinsic
 );
+
+const concatMod = module(
+  "concat",
+  null,
+  [
+    parameter("str1", false, stringType),
+    parameter("str2", false, stringType)
+  ],
+  stringType,
+  intrinsic
+);
   
 
 // Literals
@@ -514,7 +547,7 @@ export const standardLibrary = Object.freeze({
   int: intType,
   bool: boolType,
   string: stringType,
-  void: voidType,
+  "None": voidType,
   "value": valueType,
   "statement": statementType,
   //any: anyType,
@@ -536,6 +569,7 @@ export const standardLibrary = Object.freeze({
   "read": readMod, // gets the value from a mutref, basically deref
   "drop": dropMod,
   "type": typeMod,
+  "concat": concatMod,
   
 })
 

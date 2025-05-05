@@ -19,7 +19,6 @@ Range impl Collection {
 }
 
 mod main() {
-	for i in Range.new(3) {
-		print("Hello world".concat("i"));
-	}
+	for i in Range.new(3) do 
+		print(concat("Hello world", "i"));
 }

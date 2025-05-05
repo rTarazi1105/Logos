@@ -2,30 +2,31 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import parse from "../src/parser.js";
 import analyze from "../src/analyzer.js";
-import { variableDeclaration, program, variable } from "../src/core.js";
+import { statementDeclaration, program, filledOperation, intrinsic } from "../src/core.js";
 
 // Programs that are semantically correct
 const semanticChecks = [
   [
     "if-else control flow",
-    "mod starting() { if true then {a: 1; } else{ a: 2; }; }",
+    "mod main() { if true then { statementA: true; } else { statementA: false; }; }",
   ],
-  ["loop structure", "mod starting() { for x in [1,2,3] do {x++}; }"],
+  ["loop structure", "mod main() { for x in [1,2,3] do {x++; }; }"],
   [
-    "struct declaration and usage",
-    "struct S {x: int, y: bool} mod starting() { a: boolean; x: 5; y: true; }",
+    "struct declaration",
+    "struct S {x: int, y: bool, c: property<1,2>, d: property}",
   ],
-  ["module declaration", "mod math(x: int, y: int) -> int { return x + y; }"],
+  ["module usage", "mod math(x: int, y: int) -> int { a: boolean; return x;}"],
   [
     "enum declaration and usage",
-    "enum Color { Red, Green, Blue } mod starting() { c: Color = Color.Red; }",
+    "struct Blue {} enum Color { red: value, green: None, Blue } mod create(v: value) { c = Color { v }; }",
   ],
   [
     "method declaration and call",
-    "mod increment(x: int) -> int { return x + 1; } mod starting() { a: int = increment(5); }",
+    "mod increment(x: int) -> int { x++; return x; } mod main() { a = increment(5); }",
   ],
 ];
 const semanticErrors = [
+  
   [
     "non-distinct struct fields",
     "struct S {x: boolean x: int}",
@@ -79,9 +80,10 @@ const semanticErrors = [
   ],
   [
     "accessing non-existent struct field",
-    "struct S {x: int} mod starting() { s: S; y = s.y; }",
+    "struct S {x: int} mod main() { s = S { 0 }; y = s.y; }",
     /Struct has no field named y/,
   ],
+  
 ];
 
 
@@ -99,11 +101,13 @@ describe("The analyzer", () => {
   }
   it("produces the expected representation for a trivial program", () => {
     assert.deepEqual(
-      analyze(parse("x: π + 2.2;")),
+      analyze(parse("incomprehensible: true and false;")),
       program([
-        variableDeclaration(
-          variable("x", true, floatType),
-          binary("+", variable("π", false, floatType), 2.2, floatType)
+        statementDeclaration(
+          filledOperation(
+            intrinsic,
+            [true, false]
+          )
         ),
       ])
     );

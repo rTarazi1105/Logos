@@ -15,8 +15,10 @@ mod add(list: mut [bool]) -> bool {
 // "op" and "operation" are interchangeable type names
 mod identity(op1: op, op2: op) -> bool {
 	
-	n = op1.args.len;
-	if n != op2.args.len then return false;
+	n = op1.len;
+	if n != op2.len then return false;
+	// Equivalent line (now redundant) :
+	if type(op1) != type(op2) then return false;
 	
 	args = [false; n];
 	while !add(mut args) do {
