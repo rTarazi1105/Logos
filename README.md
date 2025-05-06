@@ -91,7 +91,34 @@ mod returning(input: bool) -> bool {
     bool => "Will never reach";
 }
 ```
-
+```logos
+// Define a custom struct with two fields
+struct Range {
+  current: int,
+  len: int
+}
+logos
+Copy
+Edit
+// Constructor for Range
+mod Range.new(n: int) -> Self {
+  Range {
+    current: 0,
+    len: n
+  }
+}
+logos
+Copy
+Edit
+// Implementing the Collection interface
+Range impl Collection {
+  mod get(self, i: int) -> int {
+    if i < len & i > 0 {
+      i
+    }
+  }
+}
+```
 **Collaborators:**
 
 ### Rayane Tarazi 
