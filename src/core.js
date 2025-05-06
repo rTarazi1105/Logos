@@ -38,18 +38,6 @@ export function typeName(type) {
     
     return type.name;
     
-    /*
-    if (
-      type.kind === "Struct" 
-      || type.kind === "Enum"
-      || type.kind === "ClassObjectType"
-      || type.kind === "ArrayType"
-      || type.kind === "ListType"
-    ) return type.name;
-    
-    return type.kind; // BoolType, Relation, etc
-    //throw new Error("TBD");
-    */
 }
 
 // Primitives
@@ -106,12 +94,6 @@ export function enumeration(name, cases) { // cases have kind field
   return { kind: "Enum", name, cases, isType: true }
 }
 
-/*
-export function moduleType(mutSelf, paramTypes, returnType) {
-  return { kind: "ModuleType", mutSelf, paramTypes, returnType, isType: false } // false bc cannot be used
-}
-*/
-
 export function module(name, mutSelf, params, returnType, body) {
   if (!Array.isArray(params)) {
     throw new Error("Params must be array");
@@ -123,14 +105,6 @@ export function module(name, mutSelf, params, returnType, body) {
     params,
     body,
     returnType
-    /*
-    type: moduleType(
-      mutSelf,
-      //(Array.isArray(params) ? params : []).map((p) => p.type),
-      params.map(p => p.type),
-      returnType
-    ),
-    */
   };
 }
 
@@ -144,8 +118,7 @@ export function selfType() {
 
 export function classObjectType(classes) {
 // If two classes have a method of the same name, what is the priority?
-  //classes.sort(); 
-  // Let the user define priority
+  //classes.sort(); - No, let the user define priority
   
   const name = classes[0].name;
   for (const classs in classes.slice(1)) {
@@ -211,12 +184,6 @@ export function infix(name, operation) {	// Default: and, or, ==
 export function property(name, relationArgs, statement) {	// relationArgs are numbered
   return { kind: "Property", type: propertyType(relationArgs.map(r => r.type.number)), name, relationArgs, statement }
 }
-
-/*
-export function statement(name, innerStatement) {
-  return { kind: "StatementWrapper", type: statementType, name, inner: innerStatement }
-}
-*/
 
 export function relationType(number) {
   return { kind: "RelationType", number, isType: true }
@@ -462,17 +429,6 @@ const anyType = classObjectType([anyClass]);
     
     
     
-    /*
-    const listStruct = struct(
-      "List",
-      [field("0", listType(anyType))]
-    );
-    listStruct.methods.push(module(
-      "new",
-      null,
-      listStruct
-    ));
-    */
 
 const strMod = module(
   "str", 
@@ -544,7 +500,6 @@ export function logosInt(n) {
 }
 
 
-//const anyToVoidType = moduleType([anyType], voidType);
 
 export const standardLibrary = Object.freeze({
   int: intType,
