@@ -97,9 +97,6 @@ struct Range {
   current: int,
   len: int
 }
-logos
-Copy
-Edit
 // Constructor for Range
 mod Range.new(n: int) -> Self {
   Range {
@@ -107,9 +104,6 @@ mod Range.new(n: int) -> Self {
     len: n
   }
 }
-logos
-Copy
-Edit
 // Implementing the Collection interface
 Range impl Collection {
   mod get(self, i: int) -> int {
