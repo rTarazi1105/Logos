@@ -44,7 +44,7 @@ const syntaxChecks = [
   ["assignments", "mod m() { a -- ; c ++ ; abc=3; a=1; }"],
   [
     "complex var assignment",
-    "mod m() { c(5) = 100; c.p.r=1; c.q(8).f(1,1).z=1; }",
+    "mod m() { j = mut c(5); j = 100; k = mut c.p.r; k=1; l = mut c.q(8).f(1,1).z; l=1; }",
   ],
   ["complex var bumps", "mod m() { c(5).2++;c.p.r++;c.q(8).a(1,1).z--; }"],
   ["actions", "mod m() { x = 1;\nf(100);\nprint(1); }"],

@@ -80,7 +80,7 @@ Logos {
 	
 	ClassDecl = "class" id2 ColonSuperClass? ClassBody
 	ColonSuperClass = ":" SuperClass
-	SuperClass = ListOf<CustomType, "+">
+	SuperClass = CustomType ("+" CustomType)*
 	ClassBody = "{" ClassMod* "}"
 	ClassMod = "mod" id1 ModHead ModBodyOrColon
 	ModBodyOrColon = ModBody | ";"
@@ -134,7 +134,12 @@ Logos {
 	ModCall = id1 Call
 	Call = "(" ListOf<Expr, ","> ")"
 	
-	Assignment = Variable "=" Expr
+	// Cannot assign to modcall or varfield directly
+	// (unless we required a keyword like "let" to initialize)
+	// because we'd rep the assignee and it'd create an error if undefined
+	// But you can do x = mut thing.field; x = expr;
+	// And you can do thing.field++;
+	Assignment = AssignedVariable "=" Expr
 	Expr = mut? Readable
 	Readable 
 		= Construct 

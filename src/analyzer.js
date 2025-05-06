@@ -50,13 +50,6 @@ class Context {
       throw new Error(`Not a statement: ${statement}`);
     }
     
-    /*
-    // Unwrap
-    while (statement.kind === "Statement") {
-      statement = statement.inner;
-    }
-    */
-    
     const truth = inputTruth;
     // Unwrap negation
     while (statement.kind === "Negation") {
@@ -107,26 +100,6 @@ class Context {
     
     return this.parent?.lookupClass(type, className);
   }
-  
-  /* 
-  // Won't be necessary as we can just lookup the name
-  // (Used to be necessary with type parameters)
-  getClass(type, className) {
-    const superClasses = this.classes.get(type);
-    
-    for (const [name, classs] of superClasses.entries()) {
-      if (name === className) {
-        return classs;
-      }
-      const getSuperClass = getClass(classs, className);
-      if (getSuperClass != null) {
-        return getSuperClass;
-      }
-    }
-    
-    return this.parent?.getClass(type, className);
-  }
-  */
 
   static root() {
     const context = new Context({
@@ -233,8 +206,8 @@ export default function analyze(match) {
   
   function numerify(nStr, at) {
     const number = Number(nStr);
-    must(!Number.isNaN(number), "Not an integer?!", at);
-    must(number > 0, "Expected nonnegative?!", at);
+    must(!Number.isNaN(number), "Not an integer", at);
+    must(number >= 0, "Expected nonnegative?!", at);
     return number;
   }
   
@@ -275,21 +248,6 @@ export default function analyze(match) {
     );
   }
 
-/*
-// Unused but should be FilledStruct
-  function mustBeAStruct(e, at) {
-    must(e.type?.kind === "Struct", "Expected a struct", at);
-  }
-// ^
-  function mustBeAStructOrClass(e, at) {
-    must(
-      e.type?.kind === "Struct" || e.type?.kind === "Class",
-      "Expected a struct or class",
-      at
-    );
-  }
-*/
-
   function mustBothHaveSameType(e1, e2, at) {
     // must(e2.type === core.anyType || equivalent(e1.type, e2.type), "Operands do not have the same type", at)
     must(
@@ -321,13 +279,21 @@ export default function analyze(match) {
       includesAsField(structType, "Self");
     must(!containsSelf, "Struct type must not be self-containing", at);
   }
-
-  function mustBeMutable(variable, at) {
-    must(variable.mutable, at);
+  
+  function includesAsCase(enumType, type) {
+    return enumType.cases.some((field) => field.type === type);
   }
 
-  function isDataType(x) {
+  function enumMustNotBeSelfContaining(enumType, at) {
+    const containsSelf =
+      includesAsCase(enumType, enumType) ||
+      includesAsCase(enumType, "Self");
+    must(!containsSelf, "Enum type must not be self-containing", at);
+  }
+
+  function isData(x) {
     return (x?.type === core.valueType ||
+    x?.type === core.statementType ||
     x?.kind === "Relation" ||
     x?.kind === "Infix" ||
     x?.kind === "Operation" ||
@@ -367,38 +333,10 @@ export default function analyze(match) {
       "Not an object" + msg,
       at
     );
-    /*
-    must(
-      t?.type === core.intType ||
-      t?.type === core.boolType ||
-      t?.type === core.stringType ||
-      t?.type === core.voidType ||
-      t?.kind === "MutRef" ||
-      t
-    
-    const isPrimitiveType = /int|bool|void|any/.test(e);
-    const isDataType = /Value|Infix|Statement|Assumption/.test(e);
-    const isNumberedDataType = /RelationType|OperationType|PropertyType/.test(
-      e?.kind
-    );
-    const isCompositeType = /Struct|Enum|ArrayType|TupleType|TypeParam/.test(
-      e?.kind
-    );
-    const isControlFlow = /IfFlow|ForFlow|WhileFlow|MatchFlow/.test(e?.kind);
-    must(
-      isPrimitiveType || isDataType || isNumberedDataType || isCompositeType || isControlFlow,
-      "Type expected",
-      at
-    );
-    */
   }
   
   function isVariable(e) {
     return e?.kind === "Variable" || e?.kind === "VarField" || e?.kind === "Parameter";
-  }
-  
-  function isCall(c) {
-    return c?.kind === "ModCall" || c?.kind === "MethodCall" || c?.kind === "AssociatedMethodCall";
   }
 
   function mustBeAssignedVar(e, at) {
@@ -410,11 +348,6 @@ export default function analyze(match) {
   }
 
   function equivalent(t1, t2) {
-    /*
-    if (t1 == null && t2 == undefined) {
-      return true;
-    }
-    */
   
     if (t1?.kind === "Class" || t2?.kind === "Class") {
       return false; // "Use classObjectType not class"
@@ -478,22 +411,6 @@ export default function analyze(match) {
     }
     return included;
   }
-  
-  /*
-  function assignable(targetType, sourceType, at) {
-    
-    /*
-    if (targetType?.kind === "MutRefType" && sourceType?.kind !== "MutRefType") {
-      return compatible(targetType.basicType, sourceType, at);
-    }
-    if (targetType?.kind !== "MutRefType" && sourceType?.kind === "MutRefType") {
-      return compatible(sourceType.basicType, targetType, at);
-    }
-    ///*
-    
-    return compatible(targetType, sourceType, at);
-  }
-  */
 
   function mustBeAssignable(content, targetType, at) {
     const source = content.type;
@@ -521,10 +438,6 @@ export default function analyze(match) {
   function mustBeDistinct(list, message, at) {
     const listSet = new Set(list.map((x) => x.name));
     must(listSet.size === list.length, message, at);
-  }
-
-  function mustHaveDistinctFields(type, at) {
-    mustBeDistinct(type.fields, "Fields must be distinct", at);
   }
   
   function casesMustHaveDistinctTypes(enumeration, at) {
@@ -629,8 +542,9 @@ export default function analyze(match) {
     if (x?.kind === "Variable") {
       return x.content;
     } else if (x?.kind === "VarField") {
-      return x.variable.contents[obj.index];
+      return x.variable.contents[x.index];
     }
+    return null;
   }
   function mustBeMutRefable(x, at) {
     must(getMutRefContent(x) != null, "Must be a variable or field", at)
@@ -638,7 +552,7 @@ export default function analyze(match) {
   
   
   function findMethod(subjType, methodStr, at) {
-        method = subjType?.methods.find(m => m.name === methodStr); // If impl, it will be found here (see ClassMod)
+        let method = subjType?.methods?.find(m => m.name === methodStr); // If impl, it will be found here (see ClassMod)
         								// thus allowing override
         if (method == null) {
           // Search classes
@@ -648,8 +562,10 @@ export default function analyze(match) {
           classes.push(...newClasses);
           
           while (method == null) {
-            for (const classs in classes) {
+            for (const [_, classs] of classes) {
+              // Output: undefined (dark gray)
               method = classs.modules.find(m => m.name === methodStr);
+              // TypeError: Cannot read properties of undefined (reading 'find')
               
               if (method != null) {
                 break;
@@ -658,11 +574,16 @@ export default function analyze(match) {
             
             const oldClasses = classes;
             classes = [];
-            for (const classs in oldClasses) {
+            let failure = false;
+            for (const [_, classs] of oldClasses) {
               const newClasses = context.lookup(classs);
+              if (newClasses == null) {
+                failure = true;
+                break;
+              }
               classes.push(...newClasses);
             }
-            if (classes.length === 0) {
+            if (failure || classes.length === 0) {
               must(false, "No method found", at);
             }
           }
@@ -671,99 +592,9 @@ export default function analyze(match) {
     
     return method;
   }
-  
-  // Used up to here
-  
-  /*
-  function isMutable(e) {
-    return (
-      (isVariable(e) && e?.mutable) ||
-      (e?.kind === "VarField" && isMutable(e?.variable)) ||
-      (e?.kind === "MethodCall" && isMutable(e?.object))
-    );
-    
-    return e?.mutable
-  }
-
-  function mustBeMutable(e, at) {
-    must(isMutable(e), "Cannot assign to immutable variable", at);
-  }
 
 
 
-  function checkFieldMap(typeFields, classFields) {
-    return classFields.every(
-      (field, _i) =>
-        typeFields.find((f) => f.name === field.name)?.type === field.type
-    );
-  }
-  
-  function mustMapFields(struct, classs, at) {
-    must(checkFieldMap(struct.fields, classs.fields), "Fields do not map", at);
-  }
-
-  function includesTypeArg(filledClass, typeName) {
-    return filledClass.typeArgs.some(
-      (validType) =>
-        validType?.name === typeName ||
-        (validType?.kind === "FilledClass" &&
-          includesTypeArg(validType, typeName))
-    );
-  }
-
-  function mustBeImplementable(validType, filledClass, at) {
-    if (validType == null) { // Future
-      return;
-    }
-    
-    let userDefinedMsg =
-      "Only user-defined types (struct, enum, class) can implement";
-    must(typeof validType.name !== "undefined", userDefinedMsg, at);
-    must(
-      validType.name === "Class" ||
-        validType.name === "Struct" ||
-        validType.name === "Enum",
-      userDefinedMsg,
-      at
-    );
-    
-    // For struct S and class C, cannot: S impl C<S>
-    must(
-      !includesTypeArg(filledClass, validType.name),
-      "Cannot include self in type parameters",
-      at
-    );
-  }
-  */
-
-
-
-
-// Taken care of by parser
-/*
-  function mustBeCallable(e, at) {
-    const callable =
-      isVariable(e) || isCall(e);
-    must(callable, "Call of non-function or non-constructor", at);
-  }
-  */
-
-/*
-  function mustNotReturnAnything(f, at) {
-    const returnsNothing = f.type.returnType === core.voidType;
-    must(returnsNothing, "Something should be returned", at);
-  }
-
-  function mustReturnSomething(f, at) {
-    const returnsSomething = f.type.returnType !== core.voidType;
-    must(returnsSomething, "Cannot return a value from this function", at);
-  }
-
-  function mustHaveCorrectArgumentCount(argCount, paramCount, at) {
-    const message = `${paramCount} argument(s) required but ${argCount} passed`;
-    must(argCount === paramCount, message, at);
-  }
-*/
 
   // BUILDER
   // Before .map(), use .children if + or *
@@ -791,7 +622,7 @@ export default function analyze(match) {
       const value = core.value(idStr);
       context.add(idStr, value);
 
-      if (relationId != null) {
+      if (relationId != null && relationId.children.length > 0) {
         const relation = relationId.rep();
         mustBeKindK(relation, "Relation", null, { at: id });
         mustHaveNumber(relation.kind, 1, { at: id });
@@ -936,17 +767,6 @@ export default function analyze(match) {
     // 2. Data expressions
     DataVar(id) {
       return id.rep();
-      /*
-      const variable = id.rep();
-      if (isVariable(variable, { at: id })) {
-        return variable;
-      }
-      
-      const dataVar = context.lookup(id.sourceString);
-      mustNotBeNull(dataVar, "Data variable not found", { at: id });
-      
-      return rep;
-      */
     },
     
     Statement(s) {
@@ -1119,14 +939,19 @@ export default function analyze(match) {
     ColonSuperClass(_colon, superClass) {
       return superClass.rep();
     },
-    SuperClass(customTypes) {
-      const types = customTypes.asIteration().children;
+    SuperClass(firstType, _plus, rest) {
+      const types = [firstType];
+      for (const type of rest.children) {
+        if (type.sourceString != null) {
+          types.push(type.child(1));
+        }
+      }
       
-      must(types.length !== 0, "Expected at least one type", { at: customTypes });
+      //must(types.length !== 0, "Expected at least one type?!", { at: firstType });
       
       const typesRep = [];
-      for (const type in types) {
-        typesRep.push(type);
+      for (const type of types) {
+        typesRep.push(type.rep());
       }
       
       if (typesRep.length === 1 && typesRep[0]?.kind !== "Class") {
@@ -1134,7 +959,7 @@ export default function analyze(match) {
       }
       
       for (const type in typesRep) {
-        mustBeKindK(type, "Class", null, { at: customTypes });
+        mustBeKindK(type, "Class", null, { at: firstType });
       }
       const classObjectType = core.classObjectType(types);
       for (const type in typesRep) {
@@ -1163,10 +988,6 @@ export default function analyze(match) {
     },
     Readable(r) {
       const rep = r.rep();
-      console.log("Type check!");
-      console.log(typeof(rep));
-      console.log(rep?.type);
-      console.log(rep?.kind);
       mustBeObject(rep, "?!", { at: r });
       
       return rep;
@@ -1174,7 +995,7 @@ export default function analyze(match) {
     Expr(mutable, readable) {
       let obj = readable.rep();
       
-      let content = getMutRefContent(obj);
+      const content = getMutRefContent(obj);
       
       if (mutable.sourceString === "mut") {
         must(content != null, {at: mutable }); // Must be variable or field
@@ -1188,10 +1009,12 @@ export default function analyze(match) {
       }
       
       if (content != null) {  // is variable or field
+        
         obj = content;
         
         if (obj?.kind === "MutRef") {
           obj = obj.variable;
+          
           const content2 = getMutRefContent(obj);
           mustNotBeNull(content2, "Non-variable inside mutref?!", {at: readable});
           return content2;
@@ -1265,14 +1088,12 @@ export default function analyze(match) {
     AssignedVariable(name) {
       const variable = context.lookup(name.sourceString);
       //mustBeAssignedVar(variable, { at: name }); // Can be data-declared
-      console.log("LOOKING UP: " + name.sourceString + ".");
-      console.log(context.parent.locals);
       mustNotBeNull(variable, "No variable found", {at: name});
-      return variable; // hook
+      return variable; 
     },
 
     VarField(variable, _dot, fieldId) {
-      const called = variable.rep();
+      let called = variable.rep();
       const fieldStr = fieldId.sourceString; // .trim()?
       
       const calledType = called.type;
@@ -1296,8 +1117,7 @@ export default function analyze(match) {
           return called.type.numbers;
         }
         
-        
-        if (called?.kind === "Construct") {
+        if (called?.type?.kind === "Struct") {
           let i = 0;
           let field = null;
           for (const f of called.type.fields) {
@@ -1310,28 +1130,26 @@ export default function analyze(match) {
           
           mustNotBeNull(field, "No such field", {at: variable});
           
+          const content = getMutRefContent(called); // variable content or variable field content
+          if (content != null) {
+            called = content;
+          }
+          
+          // VarField is a misnomer. It's actually an expression field
+          // We store the content inside, not the variable
+          // to make this easier, because we allow expressions' fields to be called
           return core.varField(called, field, i);
           
         } else {
           // Must be list index
           
-          const number = numerify(fieldStr, { at: id });
+          const number = numerify(fieldStr, { at: fieldId });
           
-          mustHaveIndex(called, number, {at: id});
+          mustHaveIndex(called, number, {at: fieldId});
           let type = called.basicType;
           if (isString(called)) {
             type = core.stringType;
           }
-          
-          /* // If we let collections use indices
-          mustHaveClass(variable.type, "Collection", { at: id });
-          const implName = core.implName(variable.type, "Collection");
-          
-          const impl = context.lookup(implName);
-          mustNotBeNull(impl, "No impl found", { at: id });
-          
-          const basicType = impl.modules.find(m => m.name === "get").returnType;
-          */
           
           return core.varIndex(called, number, type);
         }
@@ -1341,7 +1159,7 @@ export default function analyze(match) {
     Param(id, _colon, type) {
       let idStr = "0";
       if (id != null) {
-        idStr = id.sourceString;
+        idStr = id.sourceString.slice(0,-1); // remove ":" at the end
       }
       const param = core.field(idStr, type.rep());
       return param;
@@ -1358,7 +1176,7 @@ export default function analyze(match) {
       mustNotBeNull(module, "No module found");
       mustBeKindK(module, "Module", "Expected a module", {at: id});
       
-      const modCall = core.modCall(module, args.map(a => a.rep()));
+      const modCall = core.modCall(module, args.rep());
       
       mustHaveEqualLength(module.params, modCall.args);
       for (const [i, arg] in modCall.args.entries()) {
@@ -1376,7 +1194,7 @@ export default function analyze(match) {
     MethodCall(varOrType, _dot, methodId, args) {
       const subj = varOrType.rep();
       const methodStr = methodId.sourceString;
-      const argsRep = args.map(a => a.rep());
+      const argsRep = args.rep();
       
       let method = null;
       let methodCall = null;
@@ -1393,7 +1211,7 @@ export default function analyze(match) {
           subjType = subj.content.variable.type;
         }
         
-        mustBeCustomType(subjType, true, {at: varOrType});
+        //mustBeCustomType(subjType, true, {at: varOrType});
         must(subjType?.kind !== "Enum", "Enum has no methods", {at: varOrType});
         
         const method = findMethod(subjType, methodStr, {at: methodId});
@@ -1446,8 +1264,8 @@ export default function analyze(match) {
           i++;
         }
       }
+      mustBeDistinct(params, "Fields must be distinct", {at: id});
       struct.fields = params;
-      mustHaveDistinctFields(struct, { at: id });
       mustNotBeSelfContaining(struct, { at: id });
 
       context = context.parent;
@@ -1481,10 +1299,10 @@ export default function analyze(match) {
           i++;
         }
       }
+      mustBeDistinct(params, "Cases must be distinct", {at: id});
       enumeration.cases = params;
-      mustHaveDistinctFields(enumeration, { at: id });
       casesMustHaveDistinctTypes(enumeration, {at: id});
-      mustNotBeSelfContaining(enumeration, { at: id });
+      enumMustNotBeSelfContaining(enumeration, { at: id });
 
       context = context.parent;
       return core.enumDeclaration(enumeration);
@@ -1502,10 +1320,10 @@ export default function analyze(match) {
     ModParamWithSelf(m) {
       return m.rep();
     },
-    ModHead(_paren1, params, _paren2, returnType) { // hook voidType
+    ModHead(_paren1, params, _paren2, returnType) {
       let returnTypeRep = core.voidType;
-      if (returnType != null) {
-        returnTypeRep = returnType.rep();
+      if (returnType != null && returnType.children.length !== 0) {
+        returnTypeRep = returnType.child(0).rep();
       }
       
       const mod = core.module(
@@ -1518,9 +1336,6 @@ export default function analyze(match) {
       
       for (const param of params.asIteration().children) {
         const paramRep = param.rep();
-        console.log("New param");
-        console.log("Name: " + paramRep.name);
-        console.log(paramRep);
         if (isBoolean(paramRep)) {
           if (mod.mutSelf == null) {
             mod.mutSelf = paramRep;
@@ -1528,17 +1343,15 @@ export default function analyze(match) {
             must(false, "Cannot use self repeatedly", { at: param });
           }
         } else {
-          console.log("Pushed");
           mod.params.push(paramRep);
         }
       }
-      console.log("Now modparams =" + JSON.stringify(mod.params));
       
       return mod;
     },
     
     ModBody(_brack1, actionLines, _brack2) {
-      const modBody = core.modBody([], null);
+      const modBody = core.modBody([], core.voidType);
       
       context = context.newChildContext({
         inLoop: false,
@@ -1555,27 +1368,6 @@ export default function analyze(match) {
       
       context = context.parent;
       
-      // Not necessary? cuz Return handles compatibility
-      // and context.module should be modBody defined above
-      /*
-      if (context.module?.kind === "Module") {
-        const modBodyType = modBody.type;
-        const modReturnType = context.module.returnType;
-        console.log("A");
-        console.log(modBodyType);
-        console.log(typeof(modBodyType));
-        console.log(modReturnType);
-        console.log(typeof(modReturnType));
-        if (modBodyType == modReturnType) { // for null, undefined
-          return modBody;
-        }
-        must(
-          compatible(modBodyType, modReturnType), 
-          `Incorrect return type: Expected ${modReturnType}, got ${modBodyType}`,
-          {at: actionLines}
-        );
-      }
-      */
       
       return modBody;
     },
@@ -1594,17 +1386,21 @@ export default function analyze(match) {
         inLoop: false,
         module: mod,
       });
-      console.log("ADDING" + mod.params);
       for (const param of mod.params) {
         context.add(param.name, param);
-        console.log("Type: " + param.kind);
-        console.log("Added: " + param.name);
       }
       
       const bodyRep = body.rep();
       mod.body = bodyRep;
 
       context = context.parent;
+      
+      must(
+        compatible(bodyRep.returnType, mod.returnType), 
+        "Incorrect type returned from closure", 
+        {at: body}
+      );
+      
       return core.moduleDeclaration(mod);
     },
     
@@ -1654,15 +1450,6 @@ export default function analyze(match) {
       if (context.module?.kind === "ClassImpl") {
         selfType = context.module.subjectType;
       }
-      /*
-      let selfType = null;
-      if (context.module?.kind === "Class") {
-        selfType = core.classObjectType([context.module]);
-      } else {
-        mustBeKindK(context.module, "ClassImpl", "ClassMod outside of Class or ClassImpl?!", {at: id});
-        selfType = context.module.subjectType;
-      }
-      */
       
       const idStr = id.sourceString;
       let subjName = context.module.name;
@@ -1714,17 +1501,6 @@ export default function analyze(match) {
     ClassBody(_left, classMods, _right) {
       // All checks are in ClassMod
       return classMods.children.map(m => m.rep());
-      /*
-      const mods = new Array();
-      for (const module in classMods.children) {
-        const mod = module.Rep();
-        const contextualName = context.module.name + "." + mod.name; // context.mod can be class or classImpl
-        mustNotAlreadyBeDeclared(contextualName, { at: classMods });
-        context.add(contextualName, mod);
-      }
-      mustBeDistinct(mods, "Modules must be distinct", { at: classMods });
-      return mods
-      */
     },
 
     ClassDecl(_class, id, superClass, classBody) {
@@ -1808,16 +1584,19 @@ export default function analyze(match) {
     Assignment(id, _eq, expr) {
       const idStr = id.sourceString;
       const subj = context.lookup(idStr);
+      if (isData(subj)) {
+        must(isVariable(subj), "Cannot assign to data", {at: id});
+      }
       
       let obj = expr.rep();
       // All conversion of muts and all is taken care of in Expr
       
       if (subj == null) {
-        newVar = core.variable(idStr, obj);
-        context.add(idStr, newVar);
+        const newVar = core.variable(idStr, obj);
+        context.add(newVar.name, newVar);
         return core.variableDeclaration(newVar);
       } else {
-        mustBeAssignable(obj, subj.content.type, {at: id} );
+        mustBeAssignable(obj, subj.type, {at: id} );
         
         return core.assignment(subj, obj);
         // At the next stage:
@@ -1830,10 +1609,16 @@ export default function analyze(match) {
 
     Return(returnOrYield, degreeUp, expr) {
       mustBeInAModule({ at: returnOrYield });
-      const content = expr.rep();
       const yielding = (returnOrYield.sourceString === "yield");
+      
+      
+      let content = core.nullObject();
+      if (expr.children.length > 0) {
+        content = expr.child(0).rep();
+        mustBeObject(content, null, {at: expr});
+      }
+      
       let contentType = content.type;
-      mustNotBeNull(contentType, "", {at: expr});
       if (yielding) {
         contentType = core.listType(contentType);
       }
@@ -1855,8 +1640,8 @@ export default function analyze(match) {
       }
       
       const modBody = modBodyContext.module;
-      if (modBody.returnType == null) { // hook voidtype?
-        modBody.returnType = contentType; // If no actions, it will be null --> error in ModBody
+      if (modBody.returnType == core.voidType) { 
+        modBody.returnType = contentType;
       } else {
         if (!compatible(contentType, modBody.returnType)) {
           must(
@@ -2047,7 +1832,7 @@ export default function analyze(match) {
       return false;
     },
     number(digits) {
-      return numerify(this.sourceString, {at: digits});
+      return core.logosInt(numerify(this.sourceString, {at: digits}));
     },
     string(_quote1, _chars, _quote2) {
       return core.logosString(this.sourceString); // includes quotes for now

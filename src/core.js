@@ -32,6 +32,10 @@ export function typeName(type) {
       return name;
     }
     
+    if (type?.kind === "MutRefType") {
+      return typeName(type.basicType);
+    }
+    
     return type.name;
     
     /*
@@ -533,6 +537,10 @@ export function nullObject() {
 
 export function logosString(str) {
   return { str, type: stringType }
+}
+
+export function logosInt(n) {
+  return { n, type: intType }
 }
 
 
