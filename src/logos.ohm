@@ -104,13 +104,8 @@ Logos {
 		| "bool"
 		| "int"
 		| "string"
-		| "Self"
-		| "None"
-		| "Any"
-		| "Error"
-		| "Comparable"
-		| "Equatable"
-		| "Collection"
+		| selfType
+		| noneType
 	operationWord = "operation" | "op"
 	propertyWord = "property" | "prop"
 	
@@ -141,7 +136,14 @@ Logos {
 	
 	Assignment = Variable "=" Expr
 	Expr = mut? Readable
-	Readable = Construct | Literal | ControlFlow | LogosArray | EvalBool | Variable | ModBody
+	Readable 
+		= Construct 
+		| Literal 
+		| ControlFlow 
+		| Variable 
+		| EvalBool 
+		| LogosArray 
+		| ModBody
 	Construct = CustomType "{" ListOf<Expr, ","> "}"
 	Crement = Variable change
 	change = "++" | "--"
@@ -250,7 +252,14 @@ Logos {
 		| "get" // method on Collection
 		| "read" // mod(mutref)
 		| "name" // field on value
-		| "concat" // method on string
+		| selfType
+		| noneType
+		| anyClass
+		| errorClass
+		| comparableClass
+		| equatableClass
+		| collectionClass
+		| addClass
 	
 	DataVar = Variable	// Can be a variable only if in mod
 	
@@ -279,4 +288,5 @@ Logos {
 	comparableClass = "Comparable"
 	equatableClass = "Equatable"
 	collectionClass = "Collection"
+	addClass = "Add" // for strings, numbers or lists
 }

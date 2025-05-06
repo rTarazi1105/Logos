@@ -134,6 +134,10 @@ export function modBody(actions, returnType) {
   return { kind: "ModBody", actions, returnType }
 }
 
+export function selfType() {
+  return { kind: "SelfType" }
+}
+
 export function classObjectType(classes) {
 // If two classes have a method of the same name, what is the priority?
   //classes.sort(); 
@@ -337,8 +341,8 @@ export function comparison(name) {
 }
 
 	// x.i
-export function varField(variable, field) {	// includes list indices
-  return { kind: "VarField", variable, field, type: field.type }
+export function varField(variable, field, index) {	// variable must be a Construct
+  return { kind: "VarField", variable, field, index, type: field.type }
 }
 export function varIndex(variable, index, type) { // get type from arrayType.basicType
   return { kind: "VarIndex", variable, index, type }
@@ -419,8 +423,8 @@ const anyType = classObjectType([anyClass]);
       [module(
         "get", 
         false,
-        [parameter("i", false, intType)],
-        anyType,
+        [parameter("i", intType)],
+        selfType(),
         null
       )]
     );
@@ -432,38 +436,25 @@ const anyType = classObjectType([anyClass]);
     ]);
     const comparableClass = classs(
       "Comparable",
-      [
-        module(
+      [module(
         "cmp",
         false,
-        [parameter("other", false, null)],
+        [parameter("other", selfType())],
         orderingEnum,
         null
       )]
     );
-    if (comparableClass.modules?.length > 0) {
-      const cmpModule = comparableClass.modules[0];
-      if (cmpModule.params?.length >= 2) {
-        cmpModule.params[0].type = comparableClass;
-      }
-    }
     
     const equatableClass = classs(
       "Equatable",
       [module(
         "eq",
         false,
-        [parameter("other", false, null)],
+        [parameter("other", selfType())],
         boolType,
         null
       )]
     );
-    if (equatableClass.modules?.length > 0) {
-      const eqModule = equatableClass.modules[0];
-      if (eqModule.params?.length >= 2) {
-        eqModule.params[0].type = equatableClass;
-      }
-    }
     
     
     
@@ -482,14 +473,14 @@ const anyType = classObjectType([anyClass]);
 const strMod = module(
   "str", 
   null,
-  [parameter("text", false, anyType)], 
+  [parameter("text", anyType)], 
   stringType, 
   intrinsic
 );
 const printMod = module(
   "print", 
   null,
-  [parameter("text", false, stringType)], 
+  [parameter("text", stringType)], 
   voidType,
   intrinsic
 );
@@ -510,7 +501,7 @@ const readMod = module(
 const dropMod = module(
   "drop",
   null,
-  [parameter("obj", false, anyType)],
+  [parameter("obj", anyType)],
   voidType,
   intrinsic
 );
@@ -518,26 +509,30 @@ const dropMod = module(
 const typeMod = module(
   "type",
   null,
-  [parameter("obj", false, anyType)],
+  [parameter("obj", anyType)],
   voidType,
   intrinsic
 );
 
-const concatMod = module(
-  "concat",
-  null,
-  [
-    parameter("str1", false, stringType),
-    parameter("str2", false, stringType)
-  ],
-  stringType,
-  intrinsic
+const addClass = classs(
+  "Add",
+  [module(
+    "add", 
+    false,
+    [parameter("other", selfType())],
+    selfType(),
+    intrinsic
+  )]
 );
   
 
 // Literals
 export function nullObject() { 
   return { kind: "NullObject", type: voidType }
+}
+
+export function logosString(str) {
+  return { str, type: stringType }
 }
 
 
@@ -550,7 +545,6 @@ export const standardLibrary = Object.freeze({
   "None": voidType,
   "value": valueType,
   "statement": statementType,
-  //any: anyType,
   //print: intrinsicFunction("print", anyToVoidType),
   "and": andInfix,
   "or": orInfix,
@@ -563,13 +557,12 @@ export const standardLibrary = Object.freeze({
   "Comparable": comparableClass,
   "Equatable": equatableClass,
   "Collection": collectionClass,
-  //"List": listStruct,
   "str": strMod,
   "print": printMod, 
   "read": readMod, // gets the value from a mutref, basically deref
   "drop": dropMod,
   "type": typeMod,
-  "concat": concatMod,
+  "Add": addClass,
   
 })
 
